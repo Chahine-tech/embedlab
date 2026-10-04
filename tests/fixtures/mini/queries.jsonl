@@ -1,0 +1,7 @@
+{"query_id": "q-rotate", "text": "How do I rotate the production API token?"}
+{"query_id": "q-worker-crash", "text": "How does the system recover from a worker crash?"}
+{"query_id": "q-credentials", "text": "Where are production credentials kept?"}
+{"query_id": "q-dedup", "text": "Do I need to handle duplicate events?"}
+{"query_id": "q-too-many", "text": "What happens when I send too many requests?"}
+{"query_id": "q-reindex", "text": "When do I have to rebuild the search index?"}
+{"query_id": "q-undo-release", "text": "How do I undo a bad release?"}

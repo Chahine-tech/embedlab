@@ -1,0 +1,20 @@
+{"doc_id": "token-rotation", "text": "Production token rotation procedure. Rotating a production API token requires approval from the platform team. Run the rotation job, verify the new token in staging, then revoke the previous one after the grace period expires."}
+{"doc_id": "token-creation", "text": "API token creation procedure. To create a new API token, open the console, choose a scope, and set an expiry. Newly created tokens are active immediately. Creation requires an account with the developer role."}
+{"doc_id": "api-authentication", "text": "API authentication overview. Every request to the API must carry a bearer token in the Authorization header. Requests without a valid token receive a 401 response."}
+{"doc_id": "secrets-storage", "text": "Storing secrets. Secrets are held in the managed vault and injected at deploy time as environment variables. Never commit a secret to the repository."}
+{"doc_id": "password-policy", "text": "Account credential policy. User passwords must be at least sixteen characters and are checked against a breach corpus. Credentials expire after one year."}
+{"doc_id": "worker-recovery", "text": "Worker crash recovery. When a worker process dies, the supervisor detects the missing heartbeat and reschedules in-flight tasks onto a healthy worker. Partial work is discarded and the task restarts from its last checkpoint."}
+{"doc_id": "worker-config", "text": "Worker configuration. Each worker reads its concurrency limit and queue bindings from the deployment manifest. Changing worker configuration requires a rolling restart."}
+{"doc_id": "retry-policy", "text": "Retry policy. Failed tasks are retried with exponential backoff up to five attempts. After the final attempt the task moves to the dead letter queue."}
+{"doc_id": "temporal-workflows", "text": "Temporal workflow basics. Workflows are deterministic functions whose state is reconstructed by replaying history. Activities perform the side effects."}
+{"doc_id": "deploy-rollback", "text": "Rolling back a deployment. Use the rollback command with the previous release identifier. Rollback reverts the container image but does not revert database migrations."}
+{"doc_id": "database-migrations", "text": "Database migrations. Migrations run before the new release receives traffic. A migration must be backward compatible with the previously deployed application version."}
+{"doc_id": "billing-invoices", "text": "Invoices and billing cycles. Invoices are generated on the first day of each month and cover the preceding period. Usage is metered hourly."}
+{"doc_id": "billing-refunds", "text": "Refund handling. A refund can be issued within sixty days of the original charge. Partial refunds are prorated against remaining service days."}
+{"doc_id": "search-indexing", "text": "Search indexing pipeline. Documents are chunked, embedded and written to the vector store. Reindexing is required after changing the chunking configuration."}
+{"doc_id": "search-ranking", "text": "Search result ranking. Candidate documents from lexical and vector retrieval are merged, then a cross encoder reorders the merged candidate set."}
+{"doc_id": "rate-limits", "text": "Rate limits. Each API key is limited to one thousand requests per minute. Exceeding the limit returns a 429 with a Retry-After header."}
+{"doc_id": "webhook-delivery", "text": "Webhook delivery guarantees. Webhooks are delivered at least once. Consumers must deduplicate on the event identifier because retries can duplicate delivery."}
+{"doc_id": "audit-logging", "text": "Audit logging. Privileged actions are written to the audit log with the acting principal, the affected resource and a timestamp. Audit entries are immutable."}
+{"doc_id": "oauth-scopes", "text": "OAuth scopes. A scope grants a specific capability. Scopes are additive and cannot be narrowed after a grant is issued without reauthorisation."}
+{"doc_id": "session-expiry", "text": "Session expiry. Interactive sessions end after twelve hours of inactivity. A refresh extends the session without a new sign in."}

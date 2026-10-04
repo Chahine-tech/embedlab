@@ -1,0 +1,8 @@
+{"query_id": "q-rotate", "doc_id": "token-rotation", "relevance": 2}
+{"query_id": "q-worker-crash", "doc_id": "worker-recovery", "relevance": 2}
+{"query_id": "q-worker-crash", "doc_id": "retry-policy", "relevance": 1}
+{"query_id": "q-credentials", "doc_id": "secrets-storage", "relevance": 2}
+{"query_id": "q-dedup", "doc_id": "webhook-delivery", "relevance": 2}
+{"query_id": "q-too-many", "doc_id": "rate-limits", "relevance": 2}
+{"query_id": "q-reindex", "doc_id": "search-indexing", "relevance": 2}
+{"query_id": "q-undo-release", "doc_id": "deploy-rollback", "relevance": 2}

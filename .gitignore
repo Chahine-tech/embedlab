@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+
+# Artifacts and caches are reproducible outputs, never source of truth.
+runs/
+datasets/*
+!datasets/.gitkeep
+.env

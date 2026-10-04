@@ -1,0 +1,10 @@
+{
+  "include": [
+    "src/embedlab/domain",
+    "src/embedlab/cache",
+    "src/embedlab/artifacts"
+  ],
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "strict",
+  "reportMissingTypeStubs": false
+}
