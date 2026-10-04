@@ -88,7 +88,7 @@ def test_differing_commits_with_changed_source_are_suspect():
 def test_forgotten_impl_version_bump_is_still_caught():
     """The core claim: human discipline is not on the critical path.
 
-    impl_version matches on both sides — the bump was forgotten — yet the
+    impl_version matches on both sides (the bump was forgotten), yet the
     verdict is suspect because the source changed between the two commits.
     """
     other = manifest(stages=[stage("evaluate", environment=env(engine_commit="b" * 40))])

@@ -2,7 +2,7 @@
 
 Parquet for the tabular output, JSON for the manifest. Neutral formats on
 purpose: they are the contract between the engine and anything that reads it
-later — a notebook, a UI, or this engine three months from now — so neither
+later (a notebook, a UI, or this engine three months from now), so neither
 side has to import the other.
 
 Round-trip exactness matters more than compactness here. A score that comes

@@ -13,7 +13,7 @@ from enum import StrEnum
 
 
 class FailureKind(StrEnum):
-    """*Why* a query failed — hypotheses, never asserted facts.
+    """*Why* a query failed: hypotheses, never asserted facts.
 
     Purely causal. What happened is a `Symptom`, and the two were deliberately
     separated: a query has exactly one symptom and any number of causes, so a
@@ -44,7 +44,7 @@ class FailureKind(StrEnum):
     """No hypothesis matched the deterministic evidence.
 
     An honest fallback. The earlier design fell back to RETRIEVAL_RANK, which
-    restated the symptom as though it were a cause — it reads like an
+    restated the symptom as though it were a cause: it reads like an
     explanation while saying nothing, and it inflated the only category the
     rules could always fill.
     """
@@ -88,7 +88,7 @@ class Producer(StrEnum):
 
 
 class Symptom(StrEnum):
-    """*What* happened — deterministic, read directly off the ranking.
+    """*What* happened: deterministic, read directly off the ranking.
 
     Exclusive and exhaustive: every judged query has exactly one, so symptom
     counts sum to the number of failures. Cause counts (`FailureKind`) overlap

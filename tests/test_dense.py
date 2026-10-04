@@ -51,7 +51,7 @@ def test_searching_before_indexing_raises():
 )
 def test_everything_that_can_move_an_embedding_reaches_the_descriptor(changed):
     """An omission here is an artifact reused across a change that moved the
-    numbers — the exact failure the fingerprint exists to prevent."""
+    numbers: the exact failure the fingerprint exists to prevent."""
     baseline = fingerprint(dict(DenseRetriever(model_id=MODEL).descriptor))
     altered = fingerprint(dict(DenseRetriever(model_id=MODEL, **changed).descriptor))
     assert baseline != altered, f"{changed} does not change the descriptor"
@@ -205,7 +205,7 @@ FLOAT32_EPSILON = 1.2e-7
 @pytest.mark.slow
 def test_batch_size_changes_the_embeddings_but_only_in_the_last_bits(mini_corpus):
     """Padding differs between batch shapes and float addition is not
-    associative, so the vectors are not identical — measured at ~1e-7, which is
+    associative, so the vectors are not identical, measured at ~1e-7, which is
     float32 epsilon. Small enough to have left every SciFact ranking untouched,
     and still enough that a cached matrix produced at another batch size is not
     the matrix this configuration asks for."""

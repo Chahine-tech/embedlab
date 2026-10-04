@@ -2,8 +2,8 @@
 
 The most valuable test here, and the only one that can catch a whole-pipeline
 error. Every other test checks a component against our own expectations; this
-one checks the assembled thing — dataset loading, title concatenation, BM25
-parameters, rank ordering, tie-breaking and metric computation — against a
+one checks the assembled thing (dataset loading, title concatenation, BM25
+parameters, rank ordering, tie-breaking and metric computation) against a
 figure somebody else published.
 
 Requires the dataset, which is not in the repository:
@@ -100,7 +100,7 @@ def test_the_rules_explain_some_but_not_all_failures(scifact, bm25_run):
 
     Both earlier absolute thresholds were measurably broken here: one fired on
     135 of 137 failures, the other on none. The bounds below are deliberately
-    wide — they exist to catch a rule going degenerate again, not to freeze a
+    wide: they exist to catch a rule going degenerate again, not to freeze a
     particular distribution.
     """
     from embedlab.stages.diagnose import diagnose

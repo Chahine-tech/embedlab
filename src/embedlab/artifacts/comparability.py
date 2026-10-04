@@ -1,7 +1,7 @@
 """May these two runs be compared, and how far can the answer be trusted?
 
 A binary allow/refuse gate does not work here. Requiring an identical engine
-commit would reject every diff taken after any commit — as unusable as putting
+commit would reject every diff taken after any commit, as unusable as putting
 the commit in every cache key. Requiring nothing silently compares runs
 computed with different semantics, which is the failure this module exists to
 prevent.
@@ -14,7 +14,7 @@ Everything is judged per stage, using the environment recorded on that stage's
 provenance rather than on the run. A cached artifact may be weeks old, and
 asking "what produced *this* artifact" is the only question whose answer is
 reliable. Relevance is per stage too, so editing the diagnosis code does not
-block a retrieval diff and a torch upgrade does not block a BM25 diff — a gate
+block a retrieval diff and a torch upgrade does not block a BM25 diff. A gate
 that fires on irrelevant changes gets overridden by reflex.
 
 This module is pure. Whether source changed between two commits needs git, so
@@ -45,7 +45,7 @@ class Trust(StrEnum):
 
     SUSPECT = "suspect"
     """Something that can move the numbers differs. The diff still renders, with
-    every difference named. This is where a forgotten impl_version bump lands —
+    every difference named. This is where a forgotten impl_version bump lands,
     reached mechanically, without relying on anyone having remembered."""
 
     INCOMPARABLE = "incomparable"

@@ -60,7 +60,7 @@ def _failure_detail(outcome: RunOutcome, query_id: QueryId, queries: dict[QueryI
 
     print(f"\n{RULE}\nWHY DID THIS FAIL?   {query_id}\n{RULE}")
     print(f'\nQUERY\n  "{queries[query_id]}"')
-    print(f"\nSYMPTOM\n  {evidence.symptom.value} — gold at {_rank(evidence.gold_rank)}")
+    print(f"\nSYMPTOM\n  {evidence.symptom.value}: gold at {_rank(evidence.gold_rank)}")
     print(f"\n{outcome.name.upper()} TOP RESULTS")
     for item in ranked[:5]:
         mark = "✓" if item.doc_id == evidence.best_relevant else " "
@@ -92,7 +92,7 @@ def _commit_for(manifest: RunManifest, stage: str) -> str | None:
 
     None degrades correctly: `relevant_source_changed` reports "unknown", which
     the gate treats as suspect. A missing stage is separately refused outright
-    by `assess`, so nothing is swallowed — but reaching that refusal must not
+    by `assess`, so nothing is swallowed, but reaching that refusal must not
     require surviving an AttributeError first.
     """
     provenance = manifest.stage(stage)

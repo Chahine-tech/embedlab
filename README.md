@@ -10,7 +10,7 @@ runs are comparable at all given what changed between them.
 Status: **spike**. Nothing here is stable yet.
 
 Metrics, significance tests and failure taxonomies all exist elsewhere and are
-not what this is for — the engine consumes the first two and keeps the third
+not what this is for: the engine consumes the first two and keeps the third
 cheap. What it adds is the layer that decides how much of a diff to believe.
 
 ## Architecture in one paragraph
@@ -19,7 +19,7 @@ A build system, not a service. Each stage is a pure function from the
 fingerprint of its inputs to an immutable artifact on disk
 (`chunk -> embed -> retrieve -> rerank -> evaluate -> diagnose -> diff`).
 Caching is content-addressed, so if two runs share an upstream fingerprint we
-*know* the difference between them cannot come from that stage — the diff
+*know* the difference between them cannot come from that stage. The diff
 semantics fall out of the DAG instead of being guessed after the fact.
 
 Functional core, imperative shell, one dependency rule

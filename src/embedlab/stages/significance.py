@@ -3,7 +3,7 @@
 Without this, the headline lies by omission. At a few hundred queries a
 1.5-point nDCG gap is routinely indistinguishable from resampling noise, and
 most comparison tools print the bare number. The very first run of this engine
-produced "+1 improved" that turned out to rest entirely on a score tie — the
+produced "+1 improved" that turned out to rest entirely on a score tie: the
 same class of mistake one level up.
 
 Two standard paired procedures, both computed on *our* per-query values rather
@@ -97,10 +97,10 @@ class Significance:
             f"p={self.p_value:.3f}, n={self.n}"
         )
         if self.underpowered:
-            return f"{core} — undecided, {self.n} queries is too few to tell"
+            return f"{core}; undecided, {self.n} queries is too few to tell"
         if not self.is_real:
-            return f"{core} — indistinguishable from noise"
-        return f"{core} — real"
+            return f"{core}; indistinguishable from noise"
+        return f"{core}; real"
 
 
 def _paired(

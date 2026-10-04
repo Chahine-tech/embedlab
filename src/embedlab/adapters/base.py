@@ -1,4 +1,4 @@
-"""The adapter boundary — the one place ports-and-adapters earns its keep.
+"""The adapter boundary: the one place ports-and-adapters earns its keep.
 
 Structural typing on purpose: a retriever is anything with the right shape, so
 adding a system is a registry entry rather than a class in an inheritance tree.
@@ -21,7 +21,7 @@ class Retriever(Protocol):
     """A system that returns ranked documents for queries.
 
     `descriptor` must contain *everything* that can change the output: the
-    implementation, its version, and every parameter — BM25's variant and
+    implementation, its version, and every parameter: BM25's variant and
     `k1`/`b`, a dense model's revision, dtype, device, normalisation and prompt
     templates. It is fingerprinted into the cache key, so anything omitted here
     becomes an invisible source of fake diffs.

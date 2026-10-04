@@ -190,7 +190,7 @@ def test_an_undecided_measure_is_not_a_real_difference():
 
 def test_failure_sets_group_by_hypothesised_cause():
     """With one query the dataset cannot be calibrated, so the honest answer is
-    `unexplained` — grouping still works, it just has nothing confident to say."""
+    `unexplained`. Grouping still works, it just has nothing confident to say."""
     run = run_with(("near", 0.9), ("gold", 0.3))
     sets = failure_sets(diagnose(run, QRELS, CORPUS, QUERIES))
     assert set(sets) == {"unexplained"}

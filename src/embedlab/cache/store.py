@@ -6,7 +6,7 @@ Parquet table or a vector file never touches the caching rules.
 
 The invariant worth more than the speed: **a reader never sees a partial
 entry.** A half-written artifact mistaken for a complete one is worse than no
-cache at all — it would feed truncated results into a diff, which is the
+cache at all: it would feed truncated results into a diff, which is the
 failure this project exists to detect. So writes land in a temporary directory
 and are published by a single atomic rename.
 """
@@ -82,7 +82,7 @@ class CacheStore:
     def forget(self, stage: str, key: Fingerprint) -> bool:
         """Delete one entry. Returns whether anything was there.
 
-        Only ever used deliberately — by a `--no-cache` flag or a test. Nothing
+        Only ever used deliberately, by a `--no-cache` flag or a test. Nothing
         in the engine evicts on its own: an artifact silently disappearing would
         turn a cheap rerun into a different-looking result.
         """

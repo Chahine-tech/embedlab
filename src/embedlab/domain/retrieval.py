@@ -31,7 +31,7 @@ type Run = Mapping[QueryId, Sequence[Ranked]]
 """What one retrieval system returned for every query, best first."""
 
 type Qrels = Mapping[QueryId, Mapping[DocId, int]]
-"""Graded relevance labels. 0 means judged irrelevant, absent means unjudged —
+"""Graded relevance labels. 0 means judged irrelevant, absent means unjudged.
 a distinction that matters: an unjudged document is not evidence of a failure."""
 
 
@@ -53,7 +53,7 @@ def order_deterministically(scored: Mapping[DocId, float], k: int) -> list[Ranke
 
     The tie-break is not cosmetic. Two documents with identical scores would
     otherwise be ordered by dict insertion or by a sort that varies with the
-    backend, so re-running the same config could produce a different run — and
+    backend, so re-running the same config could produce a different run, and
     every diff against it would report movements that never happened. This is
     the single cheapest guard against a diff tool that lies.
     """

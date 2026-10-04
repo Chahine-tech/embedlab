@@ -35,7 +35,7 @@ def test_reported_order_is_the_evaluated_order_even_under_a_tie():
 
     Both documents carry the same raw score. ir_measures would re-sort by score
     and apply trec_eval's own tie-break (document id descending), which here
-    would lift "gold" above "alpha" and report RR=1.0 — a different ranking from
+    would lift "gold" above "alpha" and report RR=1.0, a different ranking from
     the one the user is shown. Synthesising from rank keeps the two in step.
     """
     run = {QueryId("q1"): ranked("alpha", "gold", scores=[0.5, 0.5])}

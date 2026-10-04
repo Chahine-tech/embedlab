@@ -9,7 +9,7 @@ and every one lands in the descriptor, because anything omitted becomes an
 artifact silently reused across a change that moved the numbers.
 
 Defaults are chosen for reproducibility rather than speed: float32 on CPU.
-Faster settings are available and legitimate — they are simply not something to
+Faster settings are available and legitimate, they are simply not something to
 inherit without deciding.
 """
 
@@ -96,7 +96,7 @@ class DenseRetriever:
             "max_seq_length": self._max_seq_length,
             # Padding differs between batch shapes and float addition is not
             # associative, so this moves the last bits of an embedding. Measured
-            # at ~1e-7 against float32 on MiniLM — far too small to reorder any
+            # at ~1e-7 against float32 on MiniLM, far too small to reorder any
             # of 300 SciFact queries, and still a different artifact than the
             # one this configuration asks for.
             "batch_size": self._batch_size,

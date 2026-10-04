@@ -25,7 +25,7 @@ IMPL_VERSION = 1
 
 Controls artifact reuse only, never whether two runs may be compared. The second
 question is decided by the comparability gate, which reads the environment
-recorded on each stage's provenance — so forgetting to bump this weakens caching
+recorded on each stage's provenance, so forgetting to bump this weakens caching
 but cannot quietly make an untrustworthy diff look sound.
 """
 
@@ -113,8 +113,8 @@ class BM25Retriever:
     def index(self, corpus: Mapping[DocId, str]) -> None:
         import bm25s
 
-        # Sorted so the internal document order — and therefore any tie-break
-        # the backend happens to apply — does not depend on dict ordering.
+        # Sorted so the internal document order (and therefore any tie-break
+        # the backend happens to apply) does not depend on dict ordering.
         self._doc_ids = sorted(corpus)
         tokens = self._tokenize([corpus[doc_id] for doc_id in self._doc_ids])
         index = bm25s.BM25(k1=self._k1, b=self._b, method=self._method, dtype=self._dtype)

@@ -36,7 +36,7 @@ def _installed_versions() -> dict[str, str]:
     """Resolved versions of the packages that can move a score.
 
     Absent packages are simply omitted, so a run with torch and a run without
-    differ in the record — which is correct: they cannot be compared blindly.
+    differ in the record, which is correct: they cannot be compared blindly.
     """
     found: dict[str, str] = {}
     for name in NUMERIC_PACKAGES:
@@ -89,7 +89,7 @@ def stage_source_paths(stages: Iterable[str]) -> tuple[str, ...]:
     Deliberately path-based rather than call-graph based. A static call graph is
     not computable in Python once Protocol adapters and a YAML registry do the
     dispatch, and an 80%-correct graph fails silently in exactly the cases it is
-    bought for. Paths over-approximate instead — the safe direction.
+    bought for. Paths over-approximate instead, which is the safe direction.
     """
     paths = {*_SHARED_SOURCE, "src/embedlab/adapters", "src/embedlab/pipeline"}
     paths.update(f"src/embedlab/stages/{stage}.py" for stage in stages)

@@ -1,4 +1,4 @@
-"""Ordering and gold-rank semantics — the arithmetic every diff sits on."""
+"""Ordering and gold-rank semantics: the arithmetic every diff sits on."""
 
 from embedlab.domain.ids import DocId
 from embedlab.domain.retrieval import Ranked, order_deterministically, rank_of_best_relevant

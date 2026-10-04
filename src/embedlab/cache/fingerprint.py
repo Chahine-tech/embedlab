@@ -7,7 +7,7 @@ exist; one that is too fine re-embeds a corpus for nothing.
 
 Design stance: **fail loudly rather than hash sloppily.** The encoder refuses
 values that cannot be reproduced on another machine or another day (filesystem
-paths, timestamps, NaN) instead of falling back to `str(value)` — the classic
+paths, timestamps, NaN) instead of falling back to `str(value)`, the classic
 way to end up with `<object at 0x7f3a...>` baked into a cache key.
 """
 
@@ -104,7 +104,7 @@ def _encode(value: object) -> bytes:
     msg = (
         f"refusing to fingerprint {type(value).__qualname__}. Values whose "
         "identity is machine- or time-dependent (paths, datetimes, open files, "
-        "arbitrary objects) must be reduced to a reproducible value first — for "
+        "arbitrary objects) must be reduced to a reproducible value first. For "
         "a file, pass fingerprint_file(path) instead of the path itself."
     )
     raise NotFingerprintableError(msg)

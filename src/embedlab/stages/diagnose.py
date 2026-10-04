@@ -1,4 +1,4 @@
-"""Why a query failed — facts first, interpretations second.
+"""Why a query failed: facts first, interpretations second.
 
 The separation is structural, not a convention: `Evidence` is arithmetic over
 the ranking and the corpus, reproducible to the bit. `Hypothesis` is an
@@ -45,7 +45,7 @@ LOW_OVERLAP_QUANTILE = 0.25
 
 Absolute thresholds were tried first and measurably failed. An IDF-weighted
 Jaccard has no dataset-independent scale, and a hand-picked 0.08 fired on
-135 of 137 SciFact failures — a rule that is almost always true discriminates
+135 of 137 SciFact failures. A rule that is almost always true discriminates
 nothing. Relative thresholds at least normalise the scale.
 """
 
@@ -171,7 +171,7 @@ class Evidence:
 
     Then its lower rank is decided by the tie-break, not by the model. Any diff
     that moves such a query is reporting an arbitrary ordering as a quality
-    change — observed on the very first fixture run, where BM25 scored the gold
+    change, observed on the very first fixture run, where BM25 scored the gold
     and a hard negative identically to the last float bit.
     """
 

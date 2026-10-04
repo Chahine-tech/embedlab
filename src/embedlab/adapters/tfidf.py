@@ -7,7 +7,7 @@ stand-in: character n-grams match morphological variation that word BM25 misses
 real LEXICAL_MISMATCH and HARD_NEGATIVE cases.
 
 Implemented directly rather than via scikit-learn to keep the dependency out
-and the conventions explicit — the smoothing and normalisation choices below
+and the conventions explicit: the smoothing and normalisation choices below
 all move the scores and are therefore all in the descriptor.
 """
 
@@ -125,7 +125,7 @@ class TfidfRetriever:
 
         n_docs = len(self._doc_ids)
         # getnnz counts stored entries per column directly. The vectoriser only
-        # stores non-zero term frequencies, so that is the document frequency —
+        # stores non-zero term frequencies, so that is the document frequency,
         # and it avoids materialising a boolean matrix the size of the corpus.
         document_frequency = counts.getnnz(axis=0)
         if self._smooth_idf:

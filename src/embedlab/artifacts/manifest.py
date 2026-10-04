@@ -80,7 +80,7 @@ class StageProvenance(BaseModel):
     stage: str
     impl_version: int
     """Manually bumped when this stage's *semantics* change. Controls recompute
-    only — never trust, which the environment gate handles."""
+    only, never trust, which the environment gate handles."""
 
     key: Fingerprint
     """The cache key this artifact is stored under."""
@@ -107,7 +107,7 @@ class StageProvenance(BaseModel):
     Per stage rather than per run, because a cached stage may have been computed
     weeks ago under a different commit and a different numpy. A single run-level
     environment would claim a reused artifact was produced with today's
-    libraries, which would quietly defeat the comparability gate — the exact
+    libraries, which would quietly defeat the comparability gate: the exact
     failure the gate exists to prevent.
     """
 
@@ -132,7 +132,7 @@ class RunManifest(BaseModel):
     """Identity of the queries and qrels this run was scored against.
 
     Recorded so the gate can refuse outright when two runs were not evaluated
-    on the same data — the one case that is meaningless rather than merely
+    on the same data, the one case that is meaningless rather than merely
     suspect.
     """
 

@@ -1,7 +1,7 @@
 """Loading an evaluation dataset, and pinning its identity.
 
 The dataset fingerprint is what lets the diff stage refuse to compare two runs
-that were not even evaluated on the same data — the one case that must end as
+that were not even evaluated on the same data: the one case that must end as
 INCOMPARABLE rather than merely suspect.
 """
 

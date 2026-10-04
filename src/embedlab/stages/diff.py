@@ -5,7 +5,7 @@ The central artifact of the product. Two rules shape it:
 First, the unit of comparison is the *query*, not the average. "+184 improved,
 -96 regressed" is the headline; the aggregate delta is a footnote. An aggregate
 cannot be clicked, and averaging hides the individual queries a developer
-actually has to fix — a model can raise mean recall while breaking the handful
+actually has to fix. A model can raise mean recall while breaking the handful
 of queries that matter most.
 
 Second, a diff is reported together with how much of it to believe. The trust
@@ -62,7 +62,7 @@ class QueryDelta:
 
     @property
     def became_failure(self) -> bool:
-        """Was first on the left and no longer is — the regressions that sting."""
+        """Was first on the left and no longer is: the regressions that sting."""
         return self.left_rank == 1 and self.right_rank != 1
 
     @property
@@ -198,7 +198,7 @@ def failure_sets(diagnosis: Diagnosis) -> dict[str, tuple[QueryId, ...]]:
     """Group failing queries by hypothesised cause.
 
     A query appears in every set whose cause was hypothesised for it, so the
-    counts intentionally sum to more than the number of failures — a query can
+    counts intentionally sum to more than the number of failures. A query can
     be both a lexical mismatch and a hard negative, and forcing a single label
     would be a fiction. Reports must say "queries in set", never "% of failures".
     """

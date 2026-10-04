@@ -1,7 +1,7 @@
 """Per-query metrics, delegated to `ir_measures`.
 
 We do not implement nDCG, MRR or recall ourselves. The formulas are easy; the
-*conventions* are not — unjudged documents, graded gain, truncation, and above
+*conventions* are not: unjudged documents, graded gain, truncation, and above
 all tie-breaking all have established trec_eval semantics that published
 numbers depend on. Getting one of them subtly wrong in a tool whose whole claim
 is "trust my diff" would be fatal, so the reference implementation is the

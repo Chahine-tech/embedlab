@@ -16,8 +16,8 @@ from embedlab.adapters.tfidf import TfidfRetriever
 UNCHANGED: dict[str, bool | None] = dict.fromkeys(STAGES_FOR_RETRIEVAL_DIFF, False)
 """No engine source changed between the two runs, stated per stage.
 
-Passing a bare `False` here used to collapse to `{}` — "could not be
-determined" — so these assertions were weaker than they read. The type checker
+Passing a bare `False` here used to collapse to `{}`, meaning "could not be
+determined", so these assertions were weaker than they read. The type checker
 found it; the tests passed either way.
 """
 
