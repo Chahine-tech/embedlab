@@ -17,10 +17,9 @@ cheap. What it adds is the layer that decides how much of a diff to believe.
 
 A build system, not a service. Each stage is a pure function from the
 fingerprint of its inputs to an immutable artifact on disk
-(`chunk -> retrieve -> evaluate -> diagnose -> diff`; reranking is not built
-yet, and embedding lives inside the dense adapter rather than as a stage of its
-own). Caching is content-addressed, so if two runs share an upstream
-fingerprint we
+(`chunk -> retrieve -> rerank -> evaluate -> diagnose -> diff`; embedding lives
+inside the dense adapter rather than as a stage of its own). Caching is
+content-addressed, so if two runs share an upstream fingerprint we
 *know* the difference between them cannot come from that stage. The diff
 semantics fall out of the DAG instead of being guessed after the fact.
 
@@ -149,6 +148,28 @@ systems:
 worth knowing before trusting any single number: at 120-word chunks only
 nDCG@10 detects the damage (p=0.032), while recall and MRR stay inside the
 noise. At 60 words all three measures turn real and the damage doubles.
+
+## Reranking
+
+A reranker sees candidates and never the corpus, so it redistributes recall and
+can never increase it. The engine records the ranking it was handed as well as
+the one it produced, because the final order alone cannot say whether a gold
+document at rank four arrived there or was pushed there.
+
+```yaml
+systems:
+  - name: bm25
+    kind: bm25
+  - name: bm25-coverage
+    kind: bm25
+    reranker: {kind: coverage}
+```
+
+`RERANK_REGRESSION` is the one cause in the taxonomy that no threshold decides:
+the gold was at a known rank and the reranker put it lower. On
+`experiments/rerank.yaml` the coverage reranker fires it on 85 of 300 queries,
+and `R@10` comes back exactly unchanged, which is the ceiling above showing up
+in the numbers rather than only in the prose.
 
 ## Measuring the rules against a person
 

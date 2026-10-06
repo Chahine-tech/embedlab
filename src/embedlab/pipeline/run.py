@@ -31,15 +31,16 @@ from embedlab.artifacts.run_io import (
 )
 from embedlab.artifacts.workspace import write_run_bundle
 from embedlab.cache.fingerprint import fingerprint
-from embedlab.domain.ids import Fingerprint, RunId, UnitId
+from embedlab.domain.ids import Fingerprint, QueryId, RunId, UnitId
 from embedlab.stages.chunk import fold_to_documents
 from embedlab.stages.diagnose import diagnose
 from embedlab.stages.evaluate import DEFAULT_MEASURES, evaluate
+from embedlab.stages.rerank import rerank
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from embedlab.adapters.base import Retriever
+    from embedlab.adapters.base import Reranker, Retriever
     from embedlab.artifacts.dataset import Dataset
     from embedlab.artifacts.workspace import Workspace
     from embedlab.cache.store import CacheStore
@@ -98,6 +99,15 @@ def retrieve_key(
             "params": fingerprint({"retriever": dict(retriever.descriptor), "k": k}),
         }
     )
+
+
+def _impl_version_of(descriptor: Mapping[str, object], who: str) -> int:
+    """Read a declared semantic version out of any adapter's descriptor."""
+    declared = dict(descriptor).get("impl_version", 1)
+    if not isinstance(declared, int) or isinstance(declared, bool):
+        msg = f"{who!r} declares impl_version={declared!r}; it must be an integer"
+        raise TypeError(msg)
+    return declared
 
 
 def _impl_version(retriever: Retriever) -> int:
@@ -191,6 +201,7 @@ def execute(
     store: CacheStore | None = None,
     workspace: Workspace | None = None,
     chunks: Chunks | None = None,
+    reranker: Reranker | None = None,
 ) -> RunOutcome:
     """Index, search, score and diagnose one retrieval configuration.
 
@@ -201,8 +212,32 @@ def execute(
     """
     run, retrieval, from_cache = _retrieve(dataset, retriever, k=k, store=store, chunks=chunks)
 
+    before_rerank: dict[QueryId, int | None] | None = None
+    stages: list[StageProvenance] = [retrieval]
+    if reranker is not None:
+        reordered = rerank(run, reranker, dataset.queries, dataset.corpus, k=k)
+        before_rerank = {
+            query_id: before for query_id, (before, _) in reordered.moved(dataset.qrels).items()
+        }
+        run = reordered.after
+        params = fingerprint({"reranker": dict(reranker.descriptor), "k": k})
+        stages.append(
+            StageProvenance(
+                stage="rerank",
+                impl_version=_impl_version_of(reranker.descriptor, reranker.name),
+                key=fingerprint({"stage": "rerank", "candidates": retrieval.key, "params": params}),
+                inputs=(retrieval.key,),
+                params=params,
+                packages=_relevant_packages("rerank", reranker.descriptor),
+                environment=capture_environment(),
+                created_at=datetime.now(UTC),
+            )
+        )
+
     evaluation = evaluate(run, dataset.qrels, measures=measures)
-    diagnosis = diagnose(run, dataset.qrels, dataset.corpus, dataset.queries)
+    diagnosis = diagnose(
+        run, dataset.qrels, dataset.corpus, dataset.queries, before_rerank=before_rerank
+    )
 
     evaluate_params = fingerprint({"measures": tuple(measures)})
     config = fingerprint(
@@ -212,6 +247,7 @@ def execute(
             "k": k,
             "measures": tuple(measures),
             "chunking": dict(chunks.strategy) if chunks is not None else None,
+            "reranker": dict(reranker.descriptor) if reranker is not None else None,
         }
     )
 
@@ -222,7 +258,7 @@ def execute(
         labels=dataset.labels_fingerprint,
         environment=capture_environment(),
         stages=(
-            retrieval,
+            *stages,
             StageProvenance(
                 stage="evaluate",
                 impl_version=EVALUATE_IMPL_VERSION,

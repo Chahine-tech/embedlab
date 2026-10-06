@@ -1,5 +1,7 @@
 """Evidence is arithmetic; hypotheses are interpretation. Keep them apart."""
 
+import dataclasses
+
 import pytest
 
 from embedlab.domain.ids import DocId, QueryId
@@ -250,3 +252,44 @@ def test_calibration_quantiles_come_from_the_dataset(mini):
 def test_calibration_is_insufficient_below_the_floor():
     assert calibration(n=MIN_QUERIES_FOR_CALIBRATION - 1).sufficient is False
     assert calibration(n=MIN_QUERIES_FOR_CALIBRATION).sufficient is True
+
+
+def test_a_demotion_by_the_reranker_is_named_and_certain():
+    """The only cause here that no threshold decides.
+
+    Every other rule interprets evidence; this one reads two ranks.
+    """
+    found = evidence_for(("near", 0.9), ("gold", 0.5))
+    demoted = dataclasses.replace(found, rank_before_rerank=1)
+
+    hypotheses = interpret(demoted, calibration())
+    regression = [h for h in hypotheses if h.kind is FailureKind.RERANK_REGRESSION]
+
+    assert len(regression) == 1
+    assert regression[0].confidence == 1.0
+    assert "rank 1" in regression[0].because[0]
+    assert "rank 2" in regression[0].because[0]
+
+
+def test_a_promotion_by_the_reranker_is_not_a_regression():
+    found = evidence_for(("near", 0.9), ("gold", 0.5))
+    promoted = dataclasses.replace(found, rank_before_rerank=5)
+    kinds = [h.kind for h in interpret(promoted, calibration())]
+    assert FailureKind.RERANK_REGRESSION not in kinds
+
+
+def test_losing_the_gold_entirely_counts_as_a_demotion():
+    found = evidence_for(("near", 0.9), ("far", 0.5))
+    lost = dataclasses.replace(found, rank_before_rerank=3)
+    regression = [
+        h for h in interpret(lost, calibration()) if h.kind is FailureKind.RERANK_REGRESSION
+    ]
+    assert len(regression) == 1
+    assert "out of the results entirely" in regression[0].because[0]
+
+
+def test_no_reranker_means_no_regression():
+    found = evidence_for(("near", 0.9), ("gold", 0.5))
+    assert found.rank_before_rerank is None
+    kinds = [h.kind for h in interpret(found, calibration())]
+    assert FailureKind.RERANK_REGRESSION not in kinds

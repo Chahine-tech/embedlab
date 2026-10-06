@@ -182,6 +182,15 @@ class Evidence:
     """How many of the returned documents the scorer gave zero. A top-K mostly
     filled with these makes recall@K look better than retrieval actually is."""
 
+    rank_before_rerank: int | None
+    """Where the gold sat before a reranker touched the order, when one did.
+
+    None when no reranker ran, which is not the same as the gold having been
+    absent: the two are distinguished by the symptom beside it. Without this a
+    demotion is invisible, since the final ranking alone cannot say whether a
+    gold at rank four arrived there or was pushed there.
+    """
+
 
 @dataclass(frozen=True, slots=True)
 class Hypothesis:
@@ -218,6 +227,7 @@ def collect_evidence(
     *,
     idf: Mapping[str, float] | None = None,
     queries: Mapping[QueryId, str],
+    before_rerank: Mapping[QueryId, int | None] | None = None,
 ) -> dict[QueryId, Evidence]:
     """Compute the deterministic facts for every judged query.
 
@@ -288,6 +298,7 @@ def collect_evidence(
             tied_with_top1=(not top1_is_relevant and margin == 0.0),
             gold_score_is_zero=gold_score_is_zero,
             retrieved_with_zero_score=sum(1 for item in ranked if item.score == 0.0),
+            rank_before_rerank=(None if before_rerank is None else before_rerank.get(query_id)),
         )
     return evidence
 
@@ -302,6 +313,25 @@ def interpret(evidence: Evidence, calibration: Calibration) -> tuple[Hypothesis,
         return ()
 
     hypotheses: list[Hypothesis] = []
+
+    before = evidence.rank_before_rerank
+    now = evidence.gold_rank
+    if before is not None and (now is None or now > before):
+        # Deterministic, unlike every other cause here: the gold was at a known
+        # rank and a reranker put it lower. No threshold decides this.
+        landed = "out of the results entirely" if now is None else f"rank {now}"
+        hypotheses.append(
+            Hypothesis(
+                query_id=evidence.query_id,
+                kind=FailureKind.RERANK_REGRESSION,
+                confidence=1.0,
+                producer=Producer.RULE,
+                because=(
+                    f"retrieval placed the gold document at rank {before} and the "
+                    f"reranker moved it to {landed}",
+                ),
+            )
+        )
 
     if evidence.tied_with_top1:
         # Deterministic, and needs no calibration: not a model failure at all
@@ -394,8 +424,10 @@ def diagnose(
     qrels: Qrels,
     corpus: Mapping[DocId, str],
     queries: Mapping[QueryId, str],
+    *,
+    before_rerank: Mapping[QueryId, int | None] | None = None,
 ) -> Diagnosis:
-    evidence = collect_evidence(run, qrels, corpus, queries=queries)
+    evidence = collect_evidence(run, qrels, corpus, queries=queries, before_rerank=before_rerank)
     calibration = calibrate(evidence)
     return Diagnosis(
         evidence=evidence,

@@ -279,3 +279,66 @@ def test_a_cut_is_reported_before_the_run(tmp_path, capsys):
     root = tmp_path / "ws"
     assert main(["--root", str(root), "run", str(write(tmp_path, body))]) == 0
     assert "chunks (" in capsys.readouterr().out
+
+
+def test_a_system_can_declare_a_reranker(tmp_path):
+    body = MINIMAL.format(dataset=FIXTURE) + "    reranker: {kind: coverage}\n"
+    experiment = load_experiment(write(tmp_path, body))
+    reranking = experiment.systems[0].reranker
+    assert reranking is not None
+    assert reranking.kind == "coverage"
+
+
+def test_an_unknown_reranker_is_refused(tmp_path):
+    body = MINIMAL.format(dataset=FIXTURE) + "    reranker: {kind: magic}\n"
+    with pytest.raises(ConfigError, match=r"coverage|cross_encoder"):
+        load_experiment(write(tmp_path, body))
+
+
+def test_a_cross_encoder_needs_its_model(tmp_path):
+    body = MINIMAL.format(dataset=FIXTURE) + "    reranker: {kind: cross_encoder}\n"
+    with pytest.raises(ConfigError, match="model_id"):
+        load_experiment(write(tmp_path, body))
+
+
+def test_the_reranker_registry_refuses_an_unknown_kind():
+    from embedlab.adapters.registry import build_reranker
+
+    with pytest.raises(ValueError, match="unknown reranker kind"):
+        build_reranker("magic")
+
+
+def test_reranking_cannot_change_recall(tmp_path, capsys):
+    """The stage's ceiling, asserted end to end.
+
+    A reranker sees candidates and never the corpus, so a published comparison
+    of a run against its reranked self must leave R@10 alone.
+    """
+    import json
+
+    body = (
+        MINIMAL.format(dataset=FIXTURE)
+        + "  - name: b\n    kind: bm25\n    reranker: {kind: coverage}\n"
+    )
+    root = tmp_path / "ws"
+    assert main(["--root", str(root), "run", str(write(tmp_path, body))]) == 0
+    capsys.readouterr()
+
+    comparison = next((root / "comparison").iterdir())
+    manifest = json.loads((comparison / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["significance"]["R@10"]["delta"] == 0.0
+
+
+def test_a_reranked_run_records_the_stage(tmp_path, capsys):
+    import json
+
+    body = MINIMAL.format(dataset=FIXTURE) + "    reranker: {kind: coverage}\n"
+    root = tmp_path / "ws"
+    main(["--root", str(root), "run", str(write(tmp_path, body))])
+    capsys.readouterr()
+
+    manifest = json.loads(
+        (next((root / "run").iterdir()) / "manifest.json").read_text(encoding="utf-8")
+    )
+    stages = {stage["stage"] for stage in manifest["manifest"]["stages"]}
+    assert stages == {"retrieve", "rerank", "evaluate"}

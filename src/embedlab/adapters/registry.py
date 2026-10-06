@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from embedlab.adapters.base import Retriever
+    from embedlab.adapters.base import Reranker, Retriever
 
 KINDS = ("bm25", "tfidf", "dense")
 
@@ -32,4 +32,22 @@ def build(kind: str, **options: object) -> Retriever:
         return DenseRetriever(**options)  # pyright: ignore[reportArgumentType]
 
     msg = f"unknown retriever kind {kind!r}; expected one of {', '.join(KINDS)}"
+    raise ValueError(msg)
+
+
+RERANKER_KINDS = ("coverage", "cross_encoder")
+
+
+def build_reranker(kind: str, **options: object) -> Reranker:
+    """Construct a reranker, refusing an unknown kind by name."""
+    if kind == "coverage":
+        from embedlab.adapters.coverage import CoverageReranker
+
+        return CoverageReranker(**options)  # pyright: ignore[reportArgumentType]
+    if kind == "cross_encoder":
+        from embedlab.adapters.cross_encoder import CrossEncoderReranker
+
+        return CrossEncoderReranker(**options)  # pyright: ignore[reportArgumentType]
+
+    msg = f"unknown reranker kind {kind!r}; expected one of {', '.join(RERANKER_KINDS)}"
     raise ValueError(msg)

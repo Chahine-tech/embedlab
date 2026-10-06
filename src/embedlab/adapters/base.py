@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from embedlab.domain.ids import QueryId, UnitId
     from embedlab.domain.retrieval import Ranked
@@ -43,4 +43,28 @@ class Retriever(Protocol):
 
     def search(self, queries: Mapping[QueryId, str], *, k: int) -> dict[QueryId, list[Ranked]]:
         """Ranked results per query, best first, ties broken deterministically."""
+        ...
+
+
+@runtime_checkable
+class Reranker(Protocol):
+    """A system that reorders what retrieval already found.
+
+    It sees candidates, never the corpus, so it cannot recover a document
+    retrieval missed. That ceiling is the whole shape of the stage: a reranker
+    can only redistribute the recall it was handed, and a diff that credits one
+    with finding something is measuring the wrong thing.
+
+    `descriptor` carries everything that can change the order, for the same
+    reason a retriever's does.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def descriptor(self) -> Mapping[str, object]: ...
+
+    def rerank(self, query: str, candidates: Sequence[tuple[UnitId, str]]) -> dict[UnitId, float]:
+        """Fresh scores for the candidates. Ordering is the stage's job."""
         ...

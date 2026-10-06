@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from embedlab.adapters.registry import build
+from embedlab.adapters.registry import build, build_reranker
 from embedlab.artifacts.dataset import DatasetError, load_dataset
 from embedlab.artifacts.workspace import Workspace, read_comparison_manifest, read_run_manifest
 from embedlab.cache.store import CacheStore
@@ -59,8 +59,15 @@ def run(arguments: argparse.Namespace) -> int:
 
     outcomes = {}
     for system in experiment.systems:
-        options = system.model_dump(exclude={"kind", "chunking"})
+        options = system.model_dump(exclude={"kind", "chunking", "reranker"})
         retriever = build(system.kind, **options)
+        reranker = (
+            None
+            if system.reranker is None
+            else build_reranker(
+                system.reranker.kind, **system.reranker.model_dump(exclude={"kind"})
+            )
+        )
         chunks = _cut(dataset, system.chunking)
         if chunks is not None:
             per_document = chunks.per_document
@@ -74,6 +81,7 @@ def run(arguments: argparse.Namespace) -> int:
             store=store,
             workspace=workspace,
             chunks=chunks,
+            reranker=reranker,
         )
         outcomes[system.name] = outcome
         origin = " (reused)" if outcome.from_cache else ""
@@ -322,6 +330,7 @@ def _rebuild_diagnosis(evidence: pl.DataFrame, hypotheses: pl.DataFrame) -> Diag
             tied_with_top1=row["tied_with_top1"],
             gold_score_is_zero=row["gold_score_is_zero"],
             retrieved_with_zero_score=row["retrieved_with_zero_score"],
+            rank_before_rerank=row["rank_before_rerank"],
         )
 
     proposed: dict[QueryId, list[Hypothesis]] = {}

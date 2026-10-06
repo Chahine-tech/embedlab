@@ -40,10 +40,37 @@ class FixedWordsChunking(BaseModel):
 Chunking = Annotated[WholeChunking | FixedWordsChunking, Field(discriminator="kind")]
 
 
+class CoverageReranking(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["coverage"]
+    lower: bool = True
+    length_penalty: float = 0.0
+
+
+class CrossEncoderReranking(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["cross_encoder"]
+    model_id: str
+    revision: str | None = None
+    device: str = "cpu"
+    dtype: str = "float32"
+    max_length: int | None = None
+    batch_size: int = 32
+
+
+Reranking = Annotated[CoverageReranking | CrossEncoderReranking, Field(discriminator="kind")]
+
+
 class _System(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
     chunking: Chunking | None = None
+    reranker: Reranking | None = None
+    """What reorders this system's candidates, if anything.
+
+    A reranker only sees what retrieval found, so declaring one changes the
+    order and can never change the recall.
+    """
     """How this system cuts the corpus, if at all.
 
     Per system rather than per experiment, because comparing two cuts of the

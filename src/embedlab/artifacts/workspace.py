@@ -67,6 +67,7 @@ _EVIDENCE_SCHEMA = {
     "tied_with_top1": pl.Boolean,
     "gold_score_is_zero": pl.Boolean,
     "retrieved_with_zero_score": pl.Int32,
+    "rank_before_rerank": pl.Int32,
 }
 
 _HYPOTHESES_SCHEMA = {
@@ -239,6 +240,7 @@ def write_run_bundle(
         evidence["tied_with_top1"].append(found.tied_with_top1)
         evidence["gold_score_is_zero"].append(found.gold_score_is_zero)
         evidence["retrieved_with_zero_score"].append(found.retrieved_with_zero_score)
+        evidence["rank_before_rerank"].append(found.rank_before_rerank)
     _write(pl.DataFrame(evidence, schema=_EVIDENCE_SCHEMA), directory / EVIDENCE)
 
     hypotheses: dict[str, list[object]] = {name: [] for name in _HYPOTHESES_SCHEMA}

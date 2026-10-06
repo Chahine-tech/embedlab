@@ -1,0 +1,19 @@
+# What does reordering the candidates buy? A reranker only ever sees what
+# retrieval found, so it can redistribute recall and never increase it. Any
+# reading of this diff that credits one with finding a document is measuring
+# something that cannot have happened.
+name: reranking on SciFact
+
+dataset: datasets/beir-scifact-test
+k: 10
+measures: [nDCG@10, R@10, RR]
+
+baseline: bm25
+
+systems:
+  - name: bm25
+    kind: bm25
+
+  - name: bm25-coverage
+    kind: bm25
+    reranker: {kind: coverage}

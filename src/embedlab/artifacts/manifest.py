@@ -154,6 +154,8 @@ class RunManifest(BaseModel):
 
 ADAPTER_PACKAGES: dict[str, tuple[str, ...]] = {
     "bm25": ("bm25s",),
+    "coverage": (),
+    "cross_encoder": ("torch", "sentence-transformers", "transformers"),
     "tfidf": ("scipy",),
     "dense": ("torch", "sentence-transformers", "transformers"),
 }
