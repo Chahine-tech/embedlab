@@ -105,7 +105,7 @@ class DenseRetriever:
     @staticmethod
     def _library_version() -> str:
         try:
-            import sentence_transformers
+            import sentence_transformers  # pyright: ignore[reportMissingImports]
         except ImportError:
             return "absent"
         return str(sentence_transformers.__version__)
@@ -114,12 +114,19 @@ class DenseRetriever:
         if self._model is not None:
             return self._model
         try:
-            from sentence_transformers import SentenceTransformer
+            # Resolved only with the 'local' extra; the type checker runs
+            # without it, which is why the import is pinned as optional here
+            # rather than by weakening the rule for the whole project.
+            from sentence_transformers import (  # pyright: ignore[reportMissingImports]
+                SentenceTransformer,
+            )
         except ImportError as error:
             msg = "dense retrieval needs the 'local' extra: uv sync --extra local"
             raise DenseUnavailableError(msg) from error
 
-        import torch
+        # Unguarded on purpose: this line is only reached once
+        # sentence-transformers has imported, and it depends on torch.
+        import torch  # pyright: ignore[reportMissingImports]
 
         # The dtype governs the forward pass, not merely how the result is
         # stored. Running in float32 and rounding afterwards is a different
@@ -199,7 +206,7 @@ def _resolve_revision(model: Any, model_id: str) -> str | None:
     claim two different sets of weights are the same.
     """
     try:
-        from huggingface_hub import model_info
+        from huggingface_hub import model_info  # pyright: ignore[reportMissingImports]
     except ImportError:
         return None
     try:

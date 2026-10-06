@@ -18,6 +18,12 @@ jobs:
       # most of the suite. The local extra pulls torch and is left out: the
       # tests it unlocks need model weights, and downloading them on every push
       # would cost more than it catches.
+      #
+      # Type checking therefore runs here and only here, in the environment
+      # where the most code resolves. Running it again with fewer extras would
+      # report missing modules rather than anything about the code, so the
+      # imports that stay unresolved even here (torch, sentence_transformers,
+      # huggingface_hub) carry an explicit per-line ignore instead.
       - run: uv sync --extra lexical --extra measures
 
       - run: uv run ruff format --check .
@@ -28,6 +34,7 @@ jobs:
       - run: uv run pytest
 
       # The core must stay installable without any extra, and the suite must
-      # skip cleanly rather than fail when one is absent.
+      # skip cleanly rather than fail when one is absent. Tests only: see above
+      # for why the type checker does not run a second time here.
       - run: uv sync
       - run: uv run pytest

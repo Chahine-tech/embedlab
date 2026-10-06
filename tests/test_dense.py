@@ -223,7 +223,7 @@ def test_the_device_changes_the_embeddings_but_only_in_the_last_bits(mini_corpus
     """Same shape of result as batch size, measured at ~2e-7 for MPS against
     CPU. ROCm and CUDA are untested and have no reason to be kinder."""
     import numpy as np
-    import torch
+    import torch  # pyright: ignore[reportMissingImports]
 
     if not torch.backends.mps.is_available():
         pytest.skip("no MPS backend on this machine")
