@@ -83,6 +83,48 @@ library: motion is CSS transitions where a property changes and a view
 transition where the detail panel is replaced wholesale, skipped while a held
 arrow key is moving faster than an animation can finish.
 
+## Running an experiment
+
+An experiment is a file. Systems are declared, not coded, so adding a model is
+an entry rather than a branch.
+
+```yaml
+# experiments/scifact.yaml
+name: lexical against dense on SciFact
+dataset: datasets/beir-scifact-test
+k: 10
+measures: [nDCG@10, R@10, RR]
+
+baseline: bm25          # what every other system is compared against
+
+systems:
+  - name: bm25
+    kind: bm25
+  - name: bm25-stemmed
+    kind: bm25
+    stemmer: snowball-en
+  - name: minilm
+    kind: dense
+    model_id: sentence-transformers/all-MiniLM-L6-v2
+    device: cpu
+    dtype: float32
+```
+
+```bash
+uv run embedlab run experiments/scifact.yaml   # execute, publish, compare
+uv run embedlab list                           # what the workspace holds
+uv run embedlab show bm25-197cb88c             # one run's health
+```
+
+Unknown keys are refused rather than ignored. `stemer: snowball-en` silently
+dropped would hand back an unstemmed run under a stemmed name, and the
+comparison would be against the wrong thing with nothing to show for it:
+
+```
+error: experiments/scifact.yaml: 1 problem(s)
+  systems.1.bm25.stemer: Extra inputs are not permitted
+```
+
 ## Try it
 
 ```bash

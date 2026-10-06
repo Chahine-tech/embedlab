@@ -1,0 +1,24 @@
+# Lexical against dense on a public benchmark, which is the comparison this
+# engine exists for. BM25 is the baseline because it is the thing an embedding
+# model has to beat, and naming it explicitly decides what "improved" means.
+name: lexical against dense on SciFact
+
+dataset: datasets/beir-scifact-test
+k: 10
+measures: [nDCG@10, R@10, RR]
+
+baseline: bm25
+
+systems:
+  - name: bm25
+    kind: bm25
+
+  - name: bm25-stemmed
+    kind: bm25
+    stemmer: snowball-en
+
+  - name: minilm
+    kind: dense
+    model_id: sentence-transformers/all-MiniLM-L6-v2
+    device: cpu
+    dtype: float32

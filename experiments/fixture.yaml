@@ -1,0 +1,14 @@
+# The 20-document fixture, deliberately too small to support a claim: every
+# measure comes back undecided. Useful for exercising the pipeline in seconds.
+name: fixture smoke test
+
+dataset: tests/fixtures/mini
+k: 10
+
+baseline: bm25
+
+systems:
+  - name: bm25
+    kind: bm25
+  - name: tfidf
+    kind: tfidf
