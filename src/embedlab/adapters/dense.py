@@ -27,7 +27,12 @@ if TYPE_CHECKING:
 
     from embedlab.domain.retrieval import Ranked
 
-IMPL_VERSION = 1
+IMPL_VERSION = 2
+"""Bumped when `dtype` went from governing storage to governing the forward
+pass. The earlier version ran the model at float32 and rounded afterwards,
+which is a different computation and a different artifact for any dtype but
+float32. Exactly the bump that is easy to forget, which is why the gate does
+not rely on it: the engine commit recorded on each stage catches it anyway."""
 
 _DTYPES = {"float32": np.float32, "float16": np.float16, "float64": np.float64}
 

@@ -76,24 +76,6 @@ def _environment_findings(
 ) -> list[tuple[Trust, str]]:
     findings: list[tuple[Trust, str]] = []
 
-    for side, environment in (("left", left), ("right", right)):
-        if environment.engine_commit is None:
-            findings.append(
-                (
-                    Trust.SUSPECT,
-                    f"{side} {stage!r} artifact has unknown provenance "
-                    "(not produced inside a git repository)",
-                )
-            )
-        elif environment.engine_dirty:
-            findings.append(
-                (
-                    Trust.SUSPECT,
-                    f"{side} {stage!r} artifact was produced from a dirty working tree "
-                    "and is not reproducible",
-                )
-            )
-
     if left.python != right.python:
         findings.append(
             (
@@ -149,6 +131,64 @@ def _environment_findings(
     return findings
 
 
+def _provenance_findings(
+    left: RunManifest,
+    right: RunManifest,
+    stages: Collection[str],
+) -> list[tuple[Trust, str]]:
+    """Whether each run's artifacts can be reproduced at all.
+
+    Gathered across stages rather than reported per stage. The same working
+    tree usually produces every stage of a run, so the per-stage version said
+    one thing four times and buried the findings that differ between the two
+    runs. Stages are still named, because a cached stage can be older and
+    cleaner than the one beside it.
+    """
+    findings: list[tuple[Trust, str]] = []
+
+    for side, manifest in (("left", left), ("right", right)):
+        unknown: list[str] = []
+        dirty: list[str] = []
+        for stage in sorted(set(stages)):
+            provenance = manifest.stage(stage)
+            if provenance is None:
+                continue
+            if provenance.environment.engine_commit is None:
+                unknown.append(stage)
+            elif provenance.environment.engine_dirty:
+                dirty.append(stage)
+
+        if unknown:
+            findings.append(
+                (
+                    Trust.SUSPECT,
+                    f"the {side} run has unknown provenance: {_names(unknown)} "
+                    f"{_was(unknown)} not produced inside a git repository",
+                )
+            )
+        if dirty:
+            findings.append(
+                (
+                    Trust.SUSPECT,
+                    f"the {side} run is not reproducible: {_names(dirty)} "
+                    f"{_was(dirty)} produced from a dirty working tree",
+                )
+            )
+
+    return findings
+
+
+def _names(stages: list[str]) -> str:
+    quoted = [repr(stage) for stage in stages]
+    if len(quoted) == 1:
+        return quoted[0]
+    return f"{', '.join(quoted[:-1])} and {quoted[-1]}"
+
+
+def _was(stages: list[str]) -> str:
+    return "was" if len(stages) == 1 else "were"
+
+
 def assess(
     left: RunManifest,
     right: RunManifest,
@@ -165,6 +205,7 @@ def assess(
     never as clean.
     """
     findings = _data_findings(left, right)
+    findings.extend(_provenance_findings(left, right, stages))
     resolved = code_changed or {}
 
     for stage in sorted(set(stages)):

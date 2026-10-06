@@ -11,6 +11,22 @@ function signed(value: number, digits = 4) {
 }
 
 /**
+ * A tick step that follows the range rather than a fixed 0.02.
+ *
+ * Fixed, it gave seven comfortable labels on a 300-query comparison and
+ * fourteen crammed ones on a 7-query comparison, whose intervals are wide
+ * precisely because the sample is small. Rounded to 1, 2 or 5 times a power of
+ * ten so the labels stay round numbers.
+ */
+function niceStep(range: number, target = 6): number {
+  const raw = Math.max(range, Number.EPSILON) / target;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const normalised = raw / magnitude;
+  const factor = normalised <= 1.5 ? 1 : normalised <= 3 ? 2 : normalised <= 7 ? 5 : 10;
+  return factor * magnitude;
+}
+
+/**
  * A delta with its interval, against a zero rule.
  *
  * Hue marks the exception only: a difference we can claim is drawn in plain
@@ -32,9 +48,13 @@ export function Forest({ significance }: { significance: Record<string, Signific
   const height = TOP + rows.length * ROW + 26;
   const x = (value: number) => LEFT + ((value - low) / (high - low)) * (WIDTH - LEFT - RIGHT);
 
-  const step = 0.02;
+  const step = niceStep(high - low);
+  // Enough decimals for the step to be legible, never more.
+  const places = Math.max(0, Math.ceil(-Math.log10(step)));
   const ticks: number[] = [];
-  for (let t = Math.ceil(low / step) * step; t <= high + 1e-9; t += step) ticks.push(t);
+  for (let t = Math.ceil(low / step) * step; t <= high + step / 2; t += step) {
+    ticks.push(Math.abs(t) < step / 2 ? 0 : t);
+  }
 
   return (
     <svg
@@ -49,7 +69,7 @@ export function Forest({ significance }: { significance: Record<string, Signific
         <g key={tick}>
           <line className="tickline" x1={x(tick)} y1={TOP} x2={x(tick)} y2={TOP + rows.length * ROW - 10} />
           <text x={x(tick)} y={TOP + rows.length * ROW + 8} textAnchor="middle">
-            {Math.abs(tick) < 1e-9 ? "0" : signed(tick, 2)}
+            {tick === 0 ? "0" : signed(tick, places)}
           </text>
         </g>
       ))}

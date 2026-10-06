@@ -155,17 +155,6 @@ export function Rail({ comparison, row }: { comparison: Comparison; row: QueryRo
         )}
       </div>
 
-      <div className="trust">
-        <p className="eyebrow" style={{ margin: 0 }}>
-          Why this diff is{" "}
-          <span style={{ color: "var(--doubt-ink)" }}>{comparison.manifest.trust.level}</span>
-        </p>
-        <ul>
-          {comparison.manifest.trust.reasons.map((reason) => (
-            <li key={reason}>{reason}</li>
-          ))}
-        </ul>
-      </div>
     </aside>
   );
 }

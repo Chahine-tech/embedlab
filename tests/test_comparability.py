@@ -267,3 +267,50 @@ def test_worst_finding_wins():
     verdict = assess(manifest(), dirty, stages=["retrieve"])
     assert verdict.trust is Trust.INCOMPARABLE
     assert len(verdict.reasons) > 1
+
+
+def test_one_dirty_tree_is_reported_once_per_run_not_once_per_stage():
+    """The same working tree usually produces every stage of a run.
+
+    Reported per stage, that single fact filled four of the nine lines on a
+    real comparison and buried the findings that actually differed between the
+    two runs.
+    """
+    dirty = env(engine_dirty=True)
+    other = manifest(
+        stages=[stage("retrieve", environment=dirty), stage("evaluate", environment=dirty)]
+    )
+
+    verdict = assess(manifest(), other, stages=BOTH, code_changed=dict.fromkeys(BOTH, False))
+    reproducible = [r for r in verdict.reasons if "not reproducible" in r]
+
+    assert len(reproducible) == 1, reproducible
+    assert "'evaluate' and 'retrieve'" in reproducible[0]
+    assert reproducible[0].startswith("the right run")
+
+
+def test_a_stage_that_is_clean_is_not_named_among_the_dirty_ones():
+    """A cached stage can be older and cleaner than the one beside it."""
+    other = manifest(
+        stages=[stage("retrieve", environment=env(engine_dirty=True)), stage("evaluate")]
+    )
+
+    verdict = assess(manifest(), other, stages=BOTH, code_changed=dict.fromkeys(BOTH, False))
+    reproducible = [r for r in verdict.reasons if "not reproducible" in r]
+
+    assert len(reproducible) == 1
+    assert "'retrieve'" in reproducible[0]
+    assert "evaluate" not in reproducible[0]
+
+
+def test_unknown_provenance_is_also_gathered_per_run():
+    nowhere = env(engine_commit=None)
+    other = manifest(
+        stages=[stage("retrieve", environment=nowhere), stage("evaluate", environment=nowhere)]
+    )
+
+    verdict = assess(manifest(), other, stages=BOTH)
+    unknown = [r for r in verdict.reasons if "unknown provenance" in r]
+
+    assert len(unknown) == 1
+    assert "were not produced inside a git repository" in unknown[0]

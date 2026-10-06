@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Comparison, Direction, QueryRow } from "./data";
+import type { Comparison, Direction, QueryRow, Significance } from "./data";
 import { loadComparison, loadIndex } from "./data";
 import { Forest } from "./Forest";
 import { Grounds } from "./Grounds";
@@ -89,6 +89,27 @@ export function App() {
     [rows, filter],
   );
 
+  /**
+   * Narrowing the grid moves the selection into what is left.
+   *
+   * Without this the rail went on describing a query the filter had just
+   * excluded, greyed out in the grid behind it: the detail panel contradicting
+   * the filter above it.
+   */
+  const chooseFilter = useCallback(
+    (next: Filter) => {
+      setFilter(next);
+      setSelected((current) => {
+        if (rows[current] && matches(rows[current], next)) return current;
+        const forward = rows.findIndex((row, index) => index >= current && matches(row, next));
+        if (forward >= 0) return forward;
+        const any = rows.findIndex((row) => matches(row, next));
+        return any >= 0 ? any : current;
+      });
+    },
+    [rows],
+  );
+
   const columns = useCallback(() => {
     const host = cells.current;
     if (!host) return 1;
@@ -110,20 +131,43 @@ export function App() {
         event.preventDefault();
         step(by);
       } else if (event.key === "Escape") {
-        setFilter("all");
+        chooseFilter("all");
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, columns]);
+  }, [step, columns, chooseFilter]);
 
-  const verdict = useMemo(() => {
-    if (!comparison) return null;
-    const entries = Object.entries(comparison.manifest.significance);
-    const real = entries.filter(([, s]) => s.is_real).map(([m]) => m);
-    const dead = entries.filter(([, s]) => !s.is_real).map(([m]) => m);
-    return { real, dead, total: entries.length };
-  }, [comparison]);
+function list(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The headline sentence, written from the numbers rather than around them.
+ *
+ * The first version asserted "all measures moved up" and put a singular verb
+ * after a list, because it was written while looking at a comparison where one
+ * measure survived and every delta was positive. On a comparison where nothing
+ * survives and a delta is negative it stated the opposite of the data.
+ */
+function verdictOf(significance: Record<string, Significance>, judged: number) {
+  const entries = Object.entries(significance);
+  const real = entries.filter(([, s]) => s.is_real).map(([m]) => m);
+  const dead = entries.filter(([, s]) => !s.is_real).map(([m]) => m);
+  const up = entries.filter(([, s]) => s.delta > 0).length;
+  const down = entries.filter(([, s]) => s.delta < 0).length;
+
+  return { real, dead, total: entries.length, up, down, judged };
+}
+
+  const verdict = useMemo(
+    () =>
+      comparison
+        ? verdictOf(comparison.manifest.significance, comparison.right.calibration.n)
+        : null,
+    [comparison],
+  );
 
   if (failure) {
     return (
@@ -190,17 +234,28 @@ export function App() {
                 <span className="same">={counts.unchanged}</span> <small>unchanged</small>
               </p>
               <p className="verdict">
-                All {verdict.total} measures moved up.{" "}
-                {verdict.real.length > 0 && (
+                {verdict.real.length === 0 ? (
                   <>
-                    <b>{verdict.real.join(" and ")}</b> survive the paired test
-                    {verdict.dead.length > 0 ? "; " : "."}
+                    Not one of the {verdict.total} measures survives the paired test.{" "}
+                    <span className="noise">
+                      Every interval crosses zero over {verdict.judged} queries
+                    </span>
+                    , so the two runs disagree about individual queries without differing
+                    in aggregate.
                   </>
-                )}
-                {verdict.dead.length > 0 && (
+                ) : verdict.dead.length === 0 ? (
                   <>
-                    <span className="noise">{verdict.dead.join(", ")}</span> does not, and reporting
-                    it as an improvement would be reporting noise.
+                    <b>{list(verdict.real)}</b>{" "}
+                    {verdict.real.length === 1 ? "survives" : "all survive"} the paired test.
+                  </>
+                ) : (
+                  <>
+                    <b>{list(verdict.real)}</b>{" "}
+                    {verdict.real.length === 1 ? "survives" : "survive"} the paired test;{" "}
+                    <span className="noise">{list(verdict.dead)}</span>{" "}
+                    {verdict.dead.length === 1 ? "does" : "do"} not, and reporting{" "}
+                    {verdict.dead.length === 1 ? "it" : "them"} as a difference would be
+                    reporting noise.
                   </>
                 )}
               </p>
@@ -224,7 +279,7 @@ export function App() {
                     type="button"
                     className="filter"
                     aria-pressed={filter === option.id}
-                    onClick={() => setFilter(option.id)}
+                    onClick={() => chooseFilter(option.id)}
                   >
                     {option.id === "all" ? `all ${rows.length}` : option.label}
                   </button>
@@ -269,6 +324,21 @@ export function App() {
             leftName={manifest.left.name}
             rightName={manifest.right.name}
           />
+
+          {/* A property of the comparison, not of the selected query: it never
+              changed while arrowing through the grid, which is what gave it
+              away as being in the wrong column. */}
+          <section className="trust">
+            <p className="eyebrow" style={{ margin: 0 }}>
+              Why this diff is{" "}
+              <span style={{ color: "var(--doubt-ink)" }}>{manifest.trust.level}</span>
+            </p>
+            <ul>
+              {manifest.trust.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          </section>
         </div>
 
         <Rail comparison={comparison} row={row} />

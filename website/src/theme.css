@@ -208,7 +208,9 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap:
 .cause[data-kind="unexplained"] { border-left-color: var(--faint); background: color-mix(in srgb, var(--faint) 7%, transparent); }
 .cause[data-kind="unexplained"] b { color: var(--faint); }
 
-.trust { background: var(--sunk); border: 1px solid var(--rule); border-radius: 2px; padding: 10px 12px; }
+.trust { background: var(--sunk); border: 1px solid var(--rule); border-radius: 2px; padding: 12px 14px; margin-bottom: 24px; }
+.trust ul { columns: 2; column-gap: 28px; }
+@media (max-width: 760px) { .trust ul { columns: 1; } }
 .trust ul { margin: 6px 0 0; padding-left: 14px; color: var(--dim); font-size: 11px; line-height: 1.5; }
 
 footer { border-top: 1px solid var(--rule); padding-block: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; color: var(--faint); font-size: 11px; }
@@ -251,7 +253,7 @@ footer .src { margin-left: auto; }
    exclusive and one overlapping. */
 .sets { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; padding-block: 4px 24px; }
 .bars { display: flex; flex-direction: column; gap: 7px; }
-.bar { display: grid; grid-template-columns: 1fr minmax(70px, 2fr) auto; gap: 10px; align-items: center; }
+.bar { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; }
 .bar-label { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { display: flex; flex-direction: column; gap: 2px; }
 .bar-fill { display: block; height: 5px; border-radius: 1px; min-width: 1px; }
