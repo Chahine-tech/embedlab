@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: set this to true or false
+# pnpm 10+ reads the allowlist from here, not from package.json. esbuild needs
+# its install script to fetch the platform binary Vite runs on.
+onlyBuiltDependencies:
+  - esbuild

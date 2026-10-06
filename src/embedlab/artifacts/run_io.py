@@ -54,7 +54,9 @@ def write_run(directory: Path, run: Run) -> Path:
             rows["score"].append(item.score)
 
     path = directory / RUN_FILE
-    pl.DataFrame(rows, schema=_SCHEMA).write_parquet(path)
+    # Snappy, for the same reason the published artifacts use it: a reader
+    # should not need an extra codec to open what this engine wrote.
+    pl.DataFrame(rows, schema=_SCHEMA).write_parquet(path, compression="snappy")
     return path
 
 

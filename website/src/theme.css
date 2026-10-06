@@ -1,0 +1,288 @@
+/*
+ * Five complete token sets, not five background values: a ground only works if
+ * the rules, the dim text and the direction hues are retuned with it.
+ *
+ * Hue carries two things and nothing else: direction (blue up, red down) and
+ * doubt (amber). A claim we can make is drawn in plain ink, so only the
+ * exception is marked. Blue against red stays separable under every common
+ * colour deficiency; amber against ink does not rely on hue at all.
+ */
+:root {
+  --ground: #f4f6f8;
+  --panel: #ffffff;
+  --sunk: #eaeef2;
+  --rule: #d2dbe3;
+  --rule-soft: #e3eaf0;
+  --text: #16222e;
+  --dim: #5e7488;
+  --faint: #8fa3b4;
+
+  --better: #2f6fb8;
+  --worse: #b4474f;
+  --flat: #c2ced8;
+  --doubt: #9a6b10;
+  --doubt-ink: #8a5f0a;
+  --accent: #2f6fb8;
+  --gold: #16222e;
+
+  --cell: 19px;
+  --gap: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-ground]) {
+    --ground: #0b0f14;
+    --panel: #111820;
+    --sunk: #0d141b;
+    --rule: #1f2d3a;
+    --rule-soft: #18242f;
+    --text: #c9d6e2;
+    --dim: #7b93a8;
+    --faint: #4e6478;
+    --better: #5a9fe0;
+    --worse: #d9636d;
+    --flat: #28384a;
+    --doubt: #d9a441;
+    --doubt-ink: #e8bd6a;
+    --accent: #5a9fe0;
+    --gold: #eaf2fa;
+  }
+}
+
+:root[data-ground="slate"] {
+  --ground: #0b0f14; --panel: #111820; --sunk: #0d141b; --rule: #1f2d3a; --rule-soft: #18242f;
+  --text: #c9d6e2; --dim: #7b93a8; --faint: #4e6478;
+  --better: #5a9fe0; --worse: #d9636d; --flat: #28384a;
+  --doubt: #d9a441; --doubt-ink: #e8bd6a; --accent: #5a9fe0; --gold: #eaf2fa;
+}
+:root[data-ground="ink"] {
+  --ground: #100d16; --panel: #181324; --sunk: #13101c; --rule: #2c2440; --rule-soft: #221c32;
+  --text: #d8d2e6; --dim: #978ead; --faint: #60587a;
+  --better: #8098f0; --worse: #e0707e; --flat: #2f2744;
+  --doubt: #d9a441; --doubt-ink: #e8bd6a; --accent: #8098f0; --gold: #efeaf8;
+}
+:root[data-ground="graphite"] {
+  --ground: #1b1e22; --panel: #23272c; --sunk: #17191d; --rule: #363c43; --rule-soft: #2b3036;
+  --text: #d5dae0; --dim: #959ca4; --faint: #6c757e;
+  --better: #5fa3dd; --worse: #d9696f; --flat: #363c43;
+  --doubt: #d2a04a; --doubt-ink: #e3b969; --accent: #5fa3dd; --gold: #eef2f6;
+}
+:root[data-ground="paper"] {
+  --ground: #f3f1ec; --panel: #fbfaf7; --sunk: #e9e6df; --rule: #d3cec3; --rule-soft: #e3dfd6;
+  --text: #1f2328; --dim: #5d6670; --faint: #8d949c;
+  --better: #2c6aad; --worse: #b04a4a; --flat: #cfcabf;
+  --doubt: #8a6410; --doubt-ink: #7a580c; --accent: #2c6aad; --gold: #1f2328;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-inline: 16px;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  padding-block: 18px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.wordmark { font-family: Archivo, system-ui, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; margin: 0; }
+.wordmark span { color: var(--faint); font-weight: 600; }
+.runs { display: flex; align-items: center; gap: 8px; color: var(--dim); }
+.run { color: var(--text); font-weight: 500; }
+.arrow { color: var(--faint); }
+.meta { color: var(--faint); margin-left: auto; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--rule); border-radius: 2px; padding: 1px 7px;
+  font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--dim); background: var(--panel);
+}
+.chip.doubt { color: var(--doubt-ink); border-color: color-mix(in srgb, var(--doubt) 45%, transparent); }
+.chip b { font-weight: 600; }
+
+.grounds { display: flex; align-items: center; gap: 5px; }
+.grounds b { font: inherit; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-right: 2px; }
+.swatch { width: 15px; height: 15px; padding: 0; border-radius: 2px; cursor: pointer; border: 1px solid var(--rule); }
+.swatch:hover { border-color: var(--faint); }
+.swatch[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 1px; }
+.swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 0 24px; align-items: start; }
+.left { min-width: 0; display: flex; flex-direction: column; }
+
+.eyebrow { font-family: Archivo, system-ui, sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+
+.claim { padding-block: 20px 18px; border-bottom: 1px solid var(--rule-soft); }
+.claim-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; margin-bottom: 16px; }
+.tally { font-family: Archivo, system-ui, sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+.tally .up { color: var(--better); }
+.tally .down { color: var(--worse); }
+.tally .same { color: var(--faint); }
+.tally small { font-size: 12px; font-weight: 600; color: var(--faint); letter-spacing: 0; }
+.verdict { color: var(--dim); max-width: 62ch; margin: 0; }
+.verdict b { color: var(--text); font-weight: 600; }
+.verdict .noise { color: var(--doubt-ink); font-weight: 600; }
+.caption { margin: 8px 0 0; color: var(--faint); font-size: 11px; }
+
+.forest { width: 100%; height: auto; display: block; overflow: visible; }
+.forest text { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: var(--dim); }
+.forest .fname { fill: var(--text); font-weight: 500; font-size: 12px; }
+.forest .fdead { fill: var(--faint); }
+.forest .zero { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 2 3; }
+.forest .ci { stroke-width: 2; stroke-linecap: round; }
+.forest .cap { stroke-width: 1; }
+.forest .tickline { stroke: var(--rule-soft); stroke-width: 1; }
+
+.band { padding-block: 18px 26px; display: flex; flex-direction: column; min-height: 0; }
+.band-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.filter { font: inherit; font-size: 11px; background: var(--panel); color: var(--dim); border: 1px solid var(--rule); border-radius: 2px; padding: 2px 9px; cursor: pointer; }
+.filter:hover { color: var(--text); border-color: var(--faint); }
+.filter[aria-pressed="true"] { color: var(--ground); background: var(--text); border-color: var(--text); }
+.filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.cells { display: grid; grid-template-columns: repeat(auto-fill, var(--cell)); gap: var(--gap); align-content: start; }
+.cell { width: var(--cell); height: var(--cell); border: 0; padding: 0; margin: 0; border-radius: 1px; cursor: pointer; background: var(--flat); }
+.cell[data-dir="improved"] { background: var(--better); }
+.cell[data-dir="regressed"] { background: var(--worse); }
+.cell[data-arb="1"] { background-image: repeating-linear-gradient(45deg, transparent 0 2px, var(--ground) 2px 4px); }
+.cell[data-muted="1"] { opacity: 0.17; }
+.cell:hover { outline: 1px solid var(--text); outline-offset: 1px; }
+.cell[aria-current="true"] { outline: 2px solid var(--text); outline-offset: 1px; }
+.cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; color: var(--faint); font-size: 11px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 1px; margin-right: 6px; vertical-align: -1px; }
+
+.rail { border-left: 1px solid var(--rule); padding: 20px 0 20px 24px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.qid { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.qid code { color: var(--faint); font-size: 11px; }
+.move { display: flex; align-items: baseline; gap: 10px; font-family: Archivo, system-ui, sans-serif; font-weight: 700; font-size: 22px; }
+.move .to { color: var(--faint); font-size: 14px; }
+.rank-miss { color: var(--worse); font-size: 13px; font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+
+.sides { display: grid; gap: 14px; }
+.side h4 { margin: 0 0 6px; font: inherit; font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: 0.06em; text-transform: uppercase; }
+.hit { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: baseline; padding: 2px 0; border-bottom: 1px solid var(--rule-soft); }
+.hit:last-child { border-bottom: 0; }
+.hit .n { color: var(--faint); font-size: 11px; }
+.hit .d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); font-size: 11px; }
+.hit .s { color: var(--faint); font-size: 11px; }
+.hit.gold { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.hit.gold .d { color: var(--gold); font-weight: 600; }
+.hit.gold .n { color: var(--gold); }
+
+.facts { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 11px; }
+.facts dt { color: var(--faint); margin: 0; }
+.facts dd { margin: 0; color: var(--text); }
+
+.cause { border-left: 2px solid var(--rule); padding: 2px 0 2px 10px; margin-bottom: 10px; }
+.cause:last-child { margin-bottom: 0; }
+.cause b { font-weight: 600; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+.cause p { margin: 1px 0 0; color: var(--dim); font-size: 11px; line-height: 1.45; }
+.cause[data-kind="lexical_mismatch"] { border-left-color: var(--accent); }
+.cause[data-kind="lexical_mismatch"] b { color: var(--accent); }
+.cause[data-kind="hard_negative"] { border-left-color: var(--worse); }
+.cause[data-kind="hard_negative"] b { color: var(--worse); }
+.cause[data-kind="score_tie"] { border-left-color: var(--doubt); }
+.cause[data-kind="score_tie"] b { color: var(--doubt-ink); }
+.cause[data-kind="unexplained"] { border-left-color: var(--faint); background: color-mix(in srgb, var(--faint) 7%, transparent); }
+.cause[data-kind="unexplained"] b { color: var(--faint); }
+
+.trust { background: var(--sunk); border: 1px solid var(--rule); border-radius: 2px; padding: 10px 12px; }
+.trust ul { margin: 6px 0 0; padding-left: 14px; color: var(--dim); font-size: 11px; line-height: 1.5; }
+
+footer { border-top: 1px solid var(--rule); padding-block: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; color: var(--faint); font-size: 11px; }
+kbd { font: inherit; font-size: 10px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 2px; padding: 0 5px; color: var(--dim); background: var(--panel); margin-right: 5px; }
+footer .src { margin-left: auto; }
+
+.state { padding: 48px 0; color: var(--dim); }
+.state code { color: var(--text); background: var(--sunk); padding: 1px 5px; border-radius: 2px; }
+.state.failed { color: var(--worse); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 1040px) {
+  main { grid-template-columns: minmax(0, 1fr); }
+  .rail { border-left: 0; border-top: 1px solid var(--rule); padding-left: 0; padding-top: 18px; }
+}
+@media (max-width: 520px) {
+  :root { --cell: 15px; --gap: 3px; }
+  .meta { margin-left: 0; width: 100%; }
+  .filters { margin-left: 0; }
+  .tally { font-size: 21px; }
+}
+
+/* A native select, styled to the token system. Radix would buy keyboard and
+   overlay behaviour the platform already gives here; the moment this needs a
+   custom-rendered option row it stops being free and the library earns it. */
+.picker {
+  font: inherit;
+  font-size: 11px;
+  color: var(--dim);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 2px 6px;
+  max-width: 320px;
+}
+.picker:hover { color: var(--text); border-color: var(--faint); }
+.picker:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Failure sets: two panels because symptom and cause are different axes, one
+   exclusive and one overlapping. */
+.sets { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; padding-block: 4px 24px; }
+.bars { display: flex; flex-direction: column; gap: 7px; }
+.bar { display: grid; grid-template-columns: 1fr minmax(70px, 2fr) auto; gap: 10px; align-items: center; }
+.bar-label { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { display: flex; flex-direction: column; gap: 2px; }
+.bar-fill { display: block; height: 5px; border-radius: 1px; min-width: 1px; }
+.bar-fill.left { background: var(--flat); }
+.bar-fill.right { background: var(--accent); }
+.bar-count { font-size: 11px; color: var(--text); }
+.bar-count .to { color: var(--faint); }
+.same-note { color: var(--faint); font-size: 10px; }
+
+/* ---------- motion ----------
+   Plain CSS where a property changes, view transitions only where a whole
+   subtree is replaced and CSS cannot reach across it. Durations are short on
+   purpose: this is a panel being read, not a thing being presented. */
+
+.cell { transition: opacity 140ms ease-out; }
+.bar-fill { transition: width 260ms cubic-bezier(0.2, 0, 0, 1); }
+.filter, .swatch, .picker { transition: color 120ms ease-out, border-color 120ms ease-out, background-color 120ms ease-out; }
+
+/* The rail is replaced wholesale when the selection moves, so a cross-fade is
+   the only thing that says "this is the same panel showing something else". */
+.rail { view-transition-name: rail; }
+::view-transition-old(rail), ::view-transition-new(rail) { animation-duration: 140ms; }
+::view-transition-old(rail) { animation-timing-function: ease-in; }
+::view-transition-new(rail) { animation-timing-function: ease-out; }
+
+/* The rank pair is the one number a reader tracks across a selection change,
+   so it morphs rather than cross-fading with everything else. */
+.move { view-transition-name: move; }
+::view-transition-old(move), ::view-transition-new(move) { animation-duration: 180ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cell, .bar-fill, .filter, .swatch, .picker { transition: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}

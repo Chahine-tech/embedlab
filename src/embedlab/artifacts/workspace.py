@@ -43,6 +43,7 @@ Separate from the manifest's schema version: a reader can understand the layout
 and still refuse a manifest it was not written for.
 """
 
+INDEX = "index.json"
 MANIFEST = "manifest.json"
 RUN_FILE = "run.parquet"
 METRICS = "metrics.parquet"
@@ -103,6 +104,28 @@ class Workspace:
     def comparisons(self) -> list[str]:
         return _listing(self.root / "comparison")
 
+    def write_index(self) -> Path:
+        """List what the workspace holds, as a file.
+
+        A reader should not have to scrape a directory listing: whether one is
+        served at all depends on the web server, and its markup is not a
+        contract. This is.
+        """
+        self.root.mkdir(parents=True, exist_ok=True)
+        path = self.root / INDEX
+        path.write_text(
+            json.dumps(
+                {
+                    "layout_version": LAYOUT_VERSION,
+                    "runs": self.runs(),
+                    "comparisons": self.comparisons(),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return path
+
 
 def _safe(identifier: str) -> str:
     if not identifier or "/" in identifier or identifier.startswith("."):
@@ -117,9 +140,20 @@ def _listing(directory: Path) -> list[str]:
     return sorted(child.name for child in directory.iterdir() if child.is_dir())
 
 
+COMPRESSION = "snappy"
+"""Snappy rather than polars' default zstd.
+
+Neutral formats are only neutral if they open without an exotic codec, and zstd
+is not in every Parquet reader: the browser-side readers worth using decode
+snappy natively and need an extra decoder for zstd. The size argument that
+would favour zstd disappears over HTTP, where transport gzip brings a snappy
+file back to roughly the same bytes on the wire.
+"""
+
+
 def _write(frame: pl.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    frame.write_parquet(path)
+    frame.write_parquet(path, compression=COMPRESSION)
 
 
 def write_run_bundle(

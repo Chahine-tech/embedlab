@@ -65,6 +65,24 @@ Schemas are long wherever a wide one would depend on configuration: one row per
 (query, measure), one row per (query, cause). Adding a measure, or a query
 carrying a second cause, needs no schema change.
 
+## The viewer
+
+`website/` is a small Vite and React app that reads the published artifacts and
+nothing else: it fetches the Parquet over HTTP and joins them in memory, so it
+exercises exactly the contract any other reader would.
+
+```bash
+cd website
+pnpm install
+pnpm dev
+```
+
+It opens on the first published comparison, or on the one named in the URL
+hash. Three dependencies at runtime, no component library and no animation
+library: motion is CSS transitions where a property changes and a view
+transition where the detail panel is replaced wholesale, skipped while a held
+arrow key is moving faster than an animation can finish.
+
 ## Try it
 
 ```bash

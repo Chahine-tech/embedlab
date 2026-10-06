@@ -201,3 +201,26 @@ def test_the_manifest_is_plain_json(published, workspace):
     left, _, _ = published
     raw = (workspace.run_dir(str(left.manifest.run_id)) / MANIFEST).read_text()
     assert isinstance(json.loads(raw), dict)
+
+
+def test_the_workspace_publishes_an_index(published, workspace):
+    """A reader should not have to scrape a directory listing: whether one is
+    served at all depends on the web server, and its markup is not a contract."""
+    left, right, comparison = published
+    index = json.loads((workspace.root / "index.json").read_text())
+
+    assert index["layout_version"] == LAYOUT_VERSION
+    assert sorted(index["runs"]) == sorted({str(left.manifest.run_id), str(right.manifest.run_id)})
+    assert index["comparisons"] == [comparison.comparison_id]
+
+
+def test_the_index_is_refreshed_by_publishing(mini, workspace):
+    from embedlab.adapters.lexical import BM25Retriever as Retriever
+
+    execute(mini, Retriever(name="first"), k=5, workspace=workspace)
+    before = json.loads((workspace.root / "index.json").read_text())["runs"]
+
+    execute(mini, Retriever(name="second"), k=5, workspace=workspace)
+    after = json.loads((workspace.root / "index.json").read_text())["runs"]
+
+    assert len(after) == len(before) + 1

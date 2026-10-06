@@ -136,6 +136,7 @@ def compare(
             left_run_id=str(left.manifest.run_id),
             right_run_id=str(right.manifest.run_id),
         )
+        workspace.write_index()
 
     return Comparison(
         comparison_id=comparison_id,

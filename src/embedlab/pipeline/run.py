@@ -230,5 +230,6 @@ def execute(
             evaluation=evaluation,
             diagnosis=diagnosis,
         )
+        workspace.write_index()
 
     return outcome

@@ -10,3 +10,7 @@ runs/
 datasets/*
 !datasets/.gitkeep
 .env
+
+# UI build output and dependencies.
+website/node_modules/
+website/dist/
