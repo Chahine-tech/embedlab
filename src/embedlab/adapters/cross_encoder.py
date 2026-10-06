@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from embedlab.adapters.hub import resolve_revision
+
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
@@ -109,6 +111,7 @@ class CrossEncoderReranker:
             max_length=self._max_length,
             model_kwargs={"torch_dtype": torch_dtype},
         )
+        self._resolved_revision = self._revision or resolve_revision(self._model_id)
         self._model = model
         return model
 

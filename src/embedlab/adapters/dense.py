@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from embedlab.adapters.hub import resolve_revision
 from embedlab.domain.ids import QueryId, UnitId
 from embedlab.domain.retrieval import order_deterministically
 
@@ -151,7 +152,7 @@ class DenseRetriever:
         if self._max_seq_length is not None:
             model.max_seq_length = self._max_seq_length
 
-        self._resolved_revision = self._revision or _resolve_revision(model, self._model_id)
+        self._resolved_revision = self._revision or resolve_revision(self._model_id)
         self._model = model
         return model
 
@@ -203,21 +204,3 @@ class DenseRetriever:
             }
             results[QueryId(query_id)] = order_deterministically(scored, effective_k)
         return results
-
-
-def _resolve_revision(model: Any, model_id: str) -> str | None:
-    """Best effort at the commit the weights actually came from.
-
-    Returns None rather than guessing when it cannot be determined: a wrong
-    revision in the descriptor is worse than an absent one, because it would
-    claim two different sets of weights are the same.
-    """
-    try:
-        from huggingface_hub import model_info  # pyright: ignore[reportMissingImports]
-    except ImportError:
-        return None
-    try:
-        return str(model_info(model_id).sha)
-    except Exception:
-        # Offline, private repo, or a local path: all of them mean "unknown".
-        return None

@@ -1,7 +1,7 @@
-# What does reordering the candidates buy? A reranker only ever sees what
-# retrieval found, so it can redistribute recall and never increase it. Any
-# reading of this diff that credits one with finding a document is measuring
-# something that cannot have happened.
+# What does reordering the candidates buy? A reranker sees candidates and never
+# the corpus, so its ceiling is the recall of the list it was handed. Handed
+# only the final k it can shuffle what retrieval chose and nothing more, which
+# is why `candidates` goes deeper.
 name: reranking on SciFact
 
 dataset: datasets/beir-scifact-test
@@ -14,6 +14,20 @@ systems:
   - name: bm25
     kind: bm25
 
-  - name: bm25-coverage
+  # Lexical, no model weights: a different question from BM25, which rewards
+  # repeating one rare term and ignores the ones a document never mentions.
+  - name: coverage-50
     kind: bm25
+    candidates: 50
     reranker: {kind: coverage}
+
+  # The standard second stage: a cross encoder reads query and document
+  # together instead of comparing them apart.
+  - name: cross-encoder-50
+    kind: bm25
+    candidates: 50
+    reranker:
+      kind: cross_encoder
+      model_id: cross-encoder/ms-marco-MiniLM-L-6-v2
+      device: cpu
+      dtype: float32

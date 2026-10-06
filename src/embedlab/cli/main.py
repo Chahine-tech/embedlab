@@ -59,7 +59,7 @@ def run(arguments: argparse.Namespace) -> int:
 
     outcomes = {}
     for system in experiment.systems:
-        options = system.model_dump(exclude={"kind", "chunking", "reranker"})
+        options = system.model_dump(exclude={"kind", "chunking", "reranker", "candidates"})
         retriever = build(system.kind, **options)
         reranker = (
             None
@@ -82,6 +82,7 @@ def run(arguments: argparse.Namespace) -> int:
             workspace=workspace,
             chunks=chunks,
             reranker=reranker,
+            candidates=system.candidates,
         )
         outcomes[system.name] = outcome
         origin = " (reused)" if outcome.from_cache else ""

@@ -65,6 +65,14 @@ class _System(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
     chunking: Chunking | None = None
+    candidates: int = Field(default=50, ge=1)
+    """How deep to retrieve before reranking.
+
+    Ignored without a reranker. A reranker handed only the final k can shuffle
+    what retrieval already chose and never promote what it buried, so measuring
+    one at k would measure something nobody deploys.
+    """
+
     reranker: Reranking | None = None
     """What reorders this system's candidates, if anything.
 

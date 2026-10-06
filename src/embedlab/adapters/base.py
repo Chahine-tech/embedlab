@@ -51,9 +51,11 @@ class Reranker(Protocol):
     """A system that reorders what retrieval already found.
 
     It sees candidates, never the corpus, so it cannot recover a document
-    retrieval missed. That ceiling is the whole shape of the stage: a reranker
-    can only redistribute the recall it was handed, and a diff that credits one
-    with finding something is measuring the wrong thing.
+    retrieval missed at the candidate depth. That is where the ceiling sits,
+    and not at the final k: handed fifty candidates and asked for ten, a
+    reranker legitimately raises recall@10 by promoting what retrieval buried
+    at rank thirty. What it can never do is exceed the recall of the list it
+    was given.
 
     `descriptor` carries everything that can change the order, for the same
     reason a retriever's does.

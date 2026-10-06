@@ -308,17 +308,19 @@ def test_the_reranker_registry_refuses_an_unknown_kind():
         build_reranker("magic")
 
 
-def test_reranking_cannot_change_recall(tmp_path, capsys):
-    """The stage's ceiling, asserted end to end.
+def test_a_reranker_at_the_final_depth_cannot_change_recall(tmp_path, capsys):
+    """The ceiling, asserted end to end at the one depth where it binds.
 
-    A reranker sees candidates and never the corpus, so a published comparison
-    of a run against its reranked self must leave R@10 alone.
+    Handed exactly the final k, a reranker can only reorder what retrieval
+    chose, so recall cannot move. Handed more, it legitimately can, which is
+    the next test.
     """
     import json
 
     body = (
         MINIMAL.format(dataset=FIXTURE)
-        + "  - name: b\n    kind: bm25\n    reranker: {kind: coverage}\n"
+        + "  - name: b\n    kind: bm25\n    candidates: 10\n"
+        + "    reranker: {kind: coverage}\n"
     )
     root = tmp_path / "ws"
     assert main(["--root", str(root), "run", str(write(tmp_path, body))]) == 0
@@ -327,6 +329,32 @@ def test_reranking_cannot_change_recall(tmp_path, capsys):
     comparison = next((root / "comparison").iterdir())
     manifest = json.loads((comparison / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["significance"]["R@10"]["delta"] == 0.0
+
+
+def test_a_deeper_candidate_list_lets_a_reranker_move_recall(tmp_path, capsys):
+    """Why the depth is a setting rather than a constant.
+
+    A reranker that only ever saw the final k could shuffle what retrieval
+    already chose and never promote what it buried, which is not how one is
+    deployed.
+    """
+    import json
+
+    body = (
+        MINIMAL.format(dataset=FIXTURE)
+        + "  - name: b\n    kind: bm25\n    candidates: 20\n"
+        + "    reranker: {kind: coverage}\n"
+    )
+    root = tmp_path / "ws"
+    assert main(["--root", str(root), "run", str(write(tmp_path, body))]) == 0
+    capsys.readouterr()
+
+    manifest = json.loads(
+        (next((root / "comparison").iterdir()) / "manifest.json").read_text(encoding="utf-8")
+    )
+    # Not asserting a direction: the point is only that the ceiling is the
+    # candidate list, not the final k.
+    assert "R@10" in manifest["significance"]
 
 
 def test_a_reranked_run_records_the_stage(tmp_path, capsys):

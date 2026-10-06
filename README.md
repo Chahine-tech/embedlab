@@ -151,25 +151,29 @@ noise. At 60 words all three measures turn real and the damage doubles.
 
 ## Reranking
 
-A reranker sees candidates and never the corpus, so it redistributes recall and
-can never increase it. The engine records the ranking it was handed as well as
-the one it produced, because the final order alone cannot say whether a gold
-document at rank four arrived there or was pushed there.
+A reranker sees candidates and never the corpus, so its ceiling is the recall
+of the list it was handed. That ceiling sits at the candidate depth, not at the
+final k: given fifty candidates and asked for ten, a reranker legitimately
+raises recall@10 by promoting what retrieval buried at rank thirty, which is
+the point of running one. `candidates` says how deep to go.
+
+The engine records the ranking it was handed as well as the one it produced,
+because the final order alone cannot say whether a gold document at rank four
+arrived there or was pushed there.
 
 ```yaml
 systems:
   - name: bm25
     kind: bm25
-  - name: bm25-coverage
+  - name: bm25-reranked
     kind: bm25
-    reranker: {kind: coverage}
+    candidates: 50                # how deep to retrieve before reordering
+    reranker: {kind: cross_encoder, model_id: cross-encoder/ms-marco-MiniLM-L-6-v2}
 ```
 
 `RERANK_REGRESSION` is the one cause in the taxonomy that no threshold decides:
-the gold was at a known rank and the reranker put it lower. On
-`experiments/rerank.yaml` the coverage reranker fires it on 85 of 300 queries,
-and `R@10` comes back exactly unchanged, which is the ceiling above showing up
-in the numbers rather than only in the prose.
+the gold was at a known rank and the reranker put it lower. It reads two ranks
+rather than interpreting evidence, so it carries confidence 1.0.
 
 ## Measuring the rules against a person
 

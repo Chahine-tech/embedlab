@@ -59,10 +59,11 @@ def test_the_order_it_was_given_is_kept():
 
 
 def test_a_reranker_cannot_add_a_document():
-    """It sees candidates, never the corpus, so recall is fixed before it runs.
+    """It sees candidates, never the corpus.
 
-    Any reading of a rerank diff that credits one with finding a document is
-    measuring something that cannot have happened.
+    The ceiling is the recall of the list it was handed. Given a deeper list
+    than the final k it may well raise recall@k, by promoting what retrieval
+    buried; what it can never do is return something that was not a candidate.
     """
     before = run_of(("repeats", 0.9), ("covers", 0.4))
     reordered = rerank(before, CoverageReranker(), QUERIES, TEXTS, k=10)

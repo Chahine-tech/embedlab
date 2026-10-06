@@ -202,6 +202,7 @@ def execute(
     workspace: Workspace | None = None,
     chunks: Chunks | None = None,
     reranker: Reranker | None = None,
+    candidates: int = 50,
 ) -> RunOutcome:
     """Index, search, score and diagnose one retrieval configuration.
 
@@ -210,7 +211,12 @@ def execute(
     contract with every reader downstream, so nothing has to import this engine
     to use what it produced.
     """
-    run, retrieval, from_cache = _retrieve(dataset, retriever, k=k, store=store, chunks=chunks)
+    # A reranker is handed a deeper candidate list than the final k, because one
+    # that only sees the final k can shuffle what retrieval already chose and
+    # never promote what it buried. Measuring it at k would measure something
+    # nobody deploys.
+    depth = k if reranker is None else max(k, candidates)
+    run, retrieval, from_cache = _retrieve(dataset, retriever, k=depth, store=store, chunks=chunks)
 
     before_rerank: dict[QueryId, int | None] | None = None
     stages: list[StageProvenance] = [retrieval]
@@ -220,7 +226,7 @@ def execute(
             query_id: before for query_id, (before, _) in reordered.moved(dataset.qrels).items()
         }
         run = reordered.after
-        params = fingerprint({"reranker": dict(reranker.descriptor), "k": k})
+        params = fingerprint({"reranker": dict(reranker.descriptor), "k": k, "candidates": depth})
         stages.append(
             StageProvenance(
                 stage="rerank",
@@ -233,6 +239,9 @@ def execute(
                 created_at=datetime.now(UTC),
             )
         )
+
+    if reranker is None and depth != k:  # pragma: no cover - depth equals k here
+        run = {query_id: list(ranked)[:k] for query_id, ranked in run.items()}
 
     evaluation = evaluate(run, dataset.qrels, measures=measures)
     diagnosis = diagnose(
@@ -248,6 +257,7 @@ def execute(
             "measures": tuple(measures),
             "chunking": dict(chunks.strategy) if chunks is not None else None,
             "reranker": dict(reranker.descriptor) if reranker is not None else None,
+            "candidates": depth if reranker is not None else None,
         }
     )
 

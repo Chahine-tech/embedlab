@@ -5,9 +5,11 @@ Without the before, a demotion is invisible: the final ranking alone cannot say
 whether a gold document at rank four arrived there or was pushed there, and
 telling those apart is the only reason to measure a reranker at all.
 
-A reranker only ever sees candidates, so recall is fixed before it starts. Any
-reading of a rerank diff that credits one with finding a document is measuring
-something that cannot have happened.
+A reranker only ever sees candidates, so its ceiling is the recall of the list
+it was handed, not the recall at the final k. Given fifty candidates and asked
+for ten it can raise recall@10 by promoting what retrieval buried at rank
+thirty, and that is the point of running one. What it cannot do is return a
+document that was never a candidate.
 """
 
 from __future__ import annotations
