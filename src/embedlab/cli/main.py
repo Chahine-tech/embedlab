@@ -186,12 +186,10 @@ def _published(workspace: Workspace, run_id: str) -> tuple[Path, dict]:
 
 def label(arguments: argparse.Namespace) -> int:
     """Draw failures for a person to name, without showing them the guess."""
-    import csv
-
     import polars as pl
 
     from embedlab.artifacts.run_io import read_run
-    from embedlab.stages.labelling import LABELLABLE, sample_failures
+    from embedlab.stages.labelling import LABELLABLE, render_sheet, sample_failures
 
     workspace, _ = _workspace(arguments.root)
     directory, manifest = _published(workspace, arguments.run_id)
@@ -216,27 +214,9 @@ def label(arguments: argparse.Namespace) -> int:
         seed=arguments.seed,
     )
 
-    with arguments.out.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(
-            ["query_id", "cause", "query", "symptom", "gold_rank", "gold_text", "retrieved"]
-        )
-        for case in cases:
-            retrieved = "\n".join(
-                f"{rank}. {'[gold] ' if relevant else ''}{text}"
-                for rank, _, text, relevant in case.retrieved
-            )
-            writer.writerow(
-                [
-                    case.query_id,
-                    "",
-                    case.query,
-                    case.symptom,
-                    "" if case.gold_rank is None else case.gold_rank,
-                    case.gold_text,
-                    retrieved,
-                ]
-            )
+    arguments.out.write_text(
+        render_sheet(cases, run_id=arguments.run_id, seed=arguments.seed), encoding="utf-8"
+    )
 
     print(f"{len(cases)} failures written to {arguments.out}")
     print(f"  seed {arguments.seed}, so the same draw comes back on a rerun")
@@ -249,29 +229,21 @@ def label(arguments: argparse.Namespace) -> int:
 
 def score(arguments: argparse.Namespace) -> int:
     """Measure the rules against what a person decided."""
-    import csv
-
     import polars as pl
 
-    from embedlab.stages.labelling import score_labels, validate_label
+    from embedlab.stages.labelling import parse_sheet, score_labels
 
     workspace, _ = _workspace(arguments.root)
     directory, _ = _published(workspace, arguments.run_id)
 
-    labels: dict[str, str] = {}
-    with arguments.sheet.open(encoding="utf-8", newline="") as handle:
-        for line, row in enumerate(csv.DictReader(handle), start=2):
-            raw = (row.get("cause") or "").strip()
-            if not raw:
-                continue
-            try:
-                labels[row["query_id"]] = validate_label(raw)
-            except ValueError as error:
-                msg = f"{arguments.sheet}:{line}: {error}"
-                raise ValueError(msg) from error
+    try:
+        labels = parse_sheet(arguments.sheet.read_text(encoding="utf-8"))
+    except ValueError as error:
+        msg = f"{arguments.sheet}: {error}"
+        raise ValueError(msg) from error
 
     if not labels:
-        print(f"{arguments.sheet}: no rows have a cause yet", file=sys.stderr)
+        print(f"{arguments.sheet}: no query has a cause yet", file=sys.stderr)
         return 1
 
     evidence = pl.read_parquet(directory / "evidence.parquet")
@@ -374,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
 
     labeller = commands.add_parser("label", help="draw failures for a person to name")
     labeller.add_argument("run_id")
-    labeller.add_argument("--out", type=Path, default=Path("labels.csv"))
+    labeller.add_argument("--out", type=Path, default=Path("labels.md"))
     labeller.add_argument("--sample", type=int, default=50)
     labeller.add_argument("--seed", type=int, default=20261006)
     labeller.set_defaults(handler=label)

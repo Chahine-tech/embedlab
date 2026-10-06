@@ -185,10 +185,14 @@ class Evidence:
     rank_before_rerank: int | None
     """Where the gold sat before a reranker touched the order, when one did.
 
-    None when no reranker ran, which is not the same as the gold having been
-    absent: the two are distinguished by the symptom beside it. Without this a
-    demotion is invisible, since the final ranking alone cannot say whether a
-    gold at rank four arrived there or was pushed there.
+    None carries two meanings and cannot tell them apart on its own: no
+    reranker ran, or one ran and the gold was never among its candidates. Both
+    leave the symptom at `miss`. Whether a reranker ran at all is recorded
+    where it belongs, as a stage on the run's provenance, and a reader that
+    needs the distinction takes it from there.
+
+    Without this field a demotion is invisible, since the final ranking alone
+    cannot say whether a gold at rank four arrived there or was pushed there.
     """
 
 

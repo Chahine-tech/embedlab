@@ -13,6 +13,10 @@ would be the rules marking their own homework.
 
 **The sample is seeded.** Which failures a person spent an hour on is part of
 the result, so a rerun has to produce the same ones.
+
+The sheet is Markdown rather than a table. The task is reading five documents
+and typing one word; a spreadsheet cell holding two thousand characters of
+concatenated abstracts is the wrong shape for that, however well it round-trips.
 """
 
 from __future__ import annotations
@@ -193,3 +197,77 @@ def validate_label(cause: str) -> str:
 def unlabelled(cases: Sequence[Case], labels: Mapping[QueryId, str]) -> list[QueryId]:
     """Cases drawn but never labelled, so a partial sheet is visible as partial."""
     return [case.query_id for case in cases if case.query_id not in labels]
+
+
+HEADING = "## "
+CAUSE = "cause:"
+
+
+def render_sheet(cases: Sequence[Case], *, run_id: str, seed: int) -> str:
+    """Write the sample as something a person can actually read."""
+    lines = [
+        f"# {len(cases)} failures to name",
+        "",
+        f"Run `{run_id}`, seed {seed}. The same draw comes back on a rerun.",
+        "",
+        "Fill the `cause:` line under each query with one of:",
+        "",
+        *(f"- `{cause}`" for cause in LABELLABLE),
+        "",
+        "`unexplained` is a real answer. Leave a line blank to skip that query.",
+        "",
+        "The rules' own guess is deliberately absent: shown it, a labeller agrees",
+        "with it, and the agreement measured afterwards means nothing.",
+    ]
+
+    for case in cases:
+        where = "never retrieved" if case.gold_rank is None else f"ranked {case.gold_rank}"
+        lines += [
+            "",
+            "---",
+            "",
+            f"{HEADING}{case.query_id}",
+            "",
+            f"{CAUSE}",
+            "",
+            f"**Query** {case.query}",
+            "",
+            f"**Gold document**, {where}",
+            "",
+            f"> {case.gold_text}",
+            "",
+            "**What came back**",
+            "",
+        ]
+        for rank, _, text, relevant in case.retrieved:
+            marker = " **(this is the gold)**" if relevant else ""
+            lines.append(f"{rank}.{marker} {text}")
+    return "\n".join(lines) + "\n"
+
+
+def parse_sheet(text: str) -> dict[QueryId, str]:
+    """Read the answers back, refusing anything the taxonomy does not know.
+
+    A blank `cause:` is a query the labeller skipped, not an error: a partial
+    sheet should score the part that was filled rather than refuse the lot.
+    """
+    labels: dict[QueryId, str] = {}
+    current: str | None = None
+
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if line.startswith(HEADING):
+            current = line[len(HEADING) :].strip()
+        elif line.startswith(CAUSE):
+            answer = line[len(CAUSE) :].strip().strip("`")
+            if not answer:
+                continue
+            if current is None:
+                msg = f"line {number}: a cause before any query heading"
+                raise ValueError(msg)
+            try:
+                labels[QueryId(current)] = validate_label(answer)
+            except ValueError as error:
+                msg = f"line {number}: {error}"
+                raise ValueError(msg) from error
+    return labels

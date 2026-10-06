@@ -121,7 +121,9 @@ header {
 
 .grounds { display: flex; align-items: center; gap: 5px; }
 .grounds b { font: inherit; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-right: 2px; }
-.swatch { width: 15px; height: 15px; padding: 0; border-radius: 2px; cursor: pointer; border: 1px solid var(--rule); }
+.swatch { width: 18px; height: 18px; padding: 0; border-radius: 2px; cursor: pointer; border: 1px solid var(--rule);
+  display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.swatch i { display: block; height: 5px; }
 .swatch:hover { border-color: var(--faint); }
 .swatch[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 1px; }
 .swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -288,3 +290,9 @@ footer .src { margin-left: auto; }
   .cell, .bar-fill, .filter, .swatch, .picker { transition: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* The reranker's own movement, beside the movement between two runs. Both are
+   a pair of ranks, so they are labelled rather than left to be told apart. */
+.reorder { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; }
+.cause[data-kind="rerank_regression"] { border-left-color: var(--worse); }
+.cause[data-kind="rerank_regression"] b { color: var(--worse); }

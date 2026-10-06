@@ -72,6 +72,80 @@ function Facts({ left, right, calibration }: { left: Side; right: Side; calibrat
   );
 }
 
+function Move({ label, before, after }: { label: string; before: number | null; after: number | null }) {
+  const worse =
+    before !== null && (after === null || after > before);
+  const colour = after === before ? "var(--faint)" : worse ? "var(--worse)" : "var(--better)";
+  return (
+    <div>
+      <p className="eyebrow" style={{ margin: "0 0 4px" }}>
+        {label}
+      </p>
+      <div className="move" style={{ color: colour, fontSize: 18 }}>
+        <span className={before === null ? "rank-miss" : undefined}>{rank(before)}</span>
+        <span className="to">to</span>
+        <span className={after === null ? "rank-miss" : undefined}>{rank(after)}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What the reranker did inside one run.
+ *
+ * Distinct from the movement between the two runs above it, and labelled as
+ * such: both are a pair of ranks, and reading one as the other would credit a
+ * reranker with a change retrieval made, or the reverse.
+ */
+function Reordering({
+  left,
+  right,
+  names,
+  reranked,
+}: {
+  left: Side;
+  right: Side;
+  names: { left: { name: string }; right: { name: string } };
+  reranked: { left: boolean; right: boolean };
+}) {
+  const sides = [
+    { side: left, name: names.left.name, ran: reranked.left },
+    { side: right, name: names.right.name, ran: reranked.right },
+  ].filter((entry) => entry.ran);
+
+  return (
+    <div>
+      <p className="eyebrow">Inside a run, what the reranker moved</p>
+      <div className="reorder">
+        {sides.map((entry) =>
+          entry.side.rank_before_rerank === null ? (
+            <div key={entry.name}>
+              <p className="eyebrow" style={{ margin: "0 0 4px" }}>
+                {entry.name}
+              </p>
+              <p className="caption" style={{ margin: 0 }}>
+                never a candidate
+              </p>
+            </div>
+          ) : (
+            <Move
+              key={entry.name}
+              label={entry.name}
+              before={entry.side.rank_before_rerank}
+              after={entry.side.gold_rank}
+            />
+          ),
+        )}
+      </div>
+      <p className="caption">
+        Retrieval put the gold there; the reranker left it here. A run without a reranker is
+        absent rather than shown unchanged, and one whose candidate list never held the gold
+        says so rather than looking like a run that was never reordered.
+      </p>
+    </div>
+  );
+}
+
 export function Rail({ comparison, row }: { comparison: Comparison; row: QueryRow | undefined }) {
   const [hits, setHits] = useState<{ left: Hit[]; right: Hit[] }>({ left: [], right: [] });
   const [causes, setCauses] = useState<Cause[]>([]);
@@ -106,6 +180,18 @@ export function Rail({ comparison, row }: { comparison: Comparison; row: QueryRo
         ? "var(--worse)"
         : "var(--faint)";
 
+  // Comparing a run against its own reranked self, the movement between the
+  // two runs is the reranker's doing and both blocks carry the same pair of
+  // ranks. Showing it twice reads as a duplication bug; saying so is a finding.
+  const onlySideReranked =
+    comparison.right.reranked && !comparison.left.reranked ? row.right : null;
+  const rerankerExplainsIt =
+    onlySideReranked !== null &&
+    onlySideReranked.rank_before_rerank === row.left_rank &&
+    onlySideReranked.gold_rank === row.right_rank;
+  const showsReordering =
+    (comparison.left.reranked || comparison.right.reranked) && !rerankerExplainsIt;
+
   return (
     <aside className="rail" aria-live="polite">
       <div>
@@ -118,14 +204,29 @@ export function Rail({ comparison, row }: { comparison: Comparison; row: QueryRo
         </div>
       </div>
 
+      {showsReordering && (
+        <Reordering
+          left={row.left}
+          right={row.right}
+          names={comparison.manifest}
+          reranked={{ left: comparison.left.reranked, right: comparison.right.reranked }}
+        />
+      )}
+
       <div>
-        <p className="eyebrow">Where the gold landed</p>
+        <p className="eyebrow">Between the two runs</p>
         <div className="move" style={{ color: colour }}>
           <span className={row.left_rank === null ? "rank-miss" : undefined}>{rank(row.left_rank)}</span>
           <span className="to">to</span>
           <span className={row.right_rank === null ? "rank-miss" : undefined}>{rank(row.right_rank)}</span>
         </div>
         {row.direction === "unchanged" && <p className="caption">Both runs place it identically.</p>}
+        {rerankerExplainsIt && row.direction !== "unchanged" && (
+          <p className="caption">
+            All of it is the reranker: retrieval handed {comparison.manifest.right.name} the
+            gold at {rank(row.left_rank)} and the reordering left it at {rank(row.right_rank)}.
+          </p>
+        )}
       </div>
 
       <div className="sides">

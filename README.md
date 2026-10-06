@@ -182,15 +182,20 @@ thresholds fixed their scale without making their labels true. There is a path
 from a published run to a measured rule:
 
 ```bash
-uv run embedlab label bm25-197cb88c --sample 50 --out labels.csv
-# fill the empty `cause` column, then
-uv run embedlab score bm25-197cb88c labels.csv
+uv run embedlab label bm25-197cb88c --sample 50 --out labels.md
+# fill the empty `cause:` line under each query, then
+uv run embedlab score bm25-197cb88c labels.md
 ```
 
-The sheet carries the query, the gold document, what was retrieved and the
-deterministic evidence, and **never the rule's own guess**: shown it, a
-labeller agrees with it, and the agreement measured afterwards is the rules
-marking their own homework. `unexplained` is an allowed answer, because a
+The sheet is Markdown, one query per section, because the task is reading five
+documents and typing one word: fifty cases run to about 130 kB, and a
+spreadsheet cell holding two thousand characters of concatenated abstracts is
+the wrong shape for that however well it round-trips. A partly filled sheet
+scores the part that is filled.
+
+Each section carries the query, the gold document and its rank, and what came
+back, and **never the rule's own guess**: shown it, a labeller agrees with it,
+and the agreement measured afterwards is the rules marking their own homework. `unexplained` is an allowed answer, because a
 person who cannot name a cause must be able to say so.
 
 The draw is seeded. Which failures someone spent an hour on is part of the

@@ -32,6 +32,12 @@ export interface ComparisonManifest {
 export interface RunManifest {
   layout_version: number;
   measures: string[];
+  /** Whether a reranker ran, taken from the stages rather than guessed.
+   *
+   * `rank_before_rerank` being absent means either that no reranker ran or
+   * that one ran and never saw the gold, and nothing in the evidence tells
+   * those apart. The provenance does. */
+  reranked: boolean;
   calibration: {
     n: number;
     sufficient: boolean;
@@ -44,6 +50,8 @@ export interface RunManifest {
 export interface Side {
   symptom: Symptom;
   gold_rank: number | null;
+  /** Where the gold sat before a reranker touched this run, when one did. */
+  rank_before_rerank: number | null;
   top1: string;
   query_gold_overlap: number;
   competitor_gold_overlap: number;
@@ -122,6 +130,7 @@ interface EvidenceRow {
   query_id: string;
   symptom: Symptom;
   gold_rank: number | null;
+  rank_before_rerank: number | null;
   top1: string;
   query_gold_overlap: number;
   competitor_gold_overlap: number;
@@ -143,6 +152,7 @@ function side(row: EvidenceRow): Side {
   return {
     symptom: row.symptom,
     gold_rank: row.gold_rank,
+    rank_before_rerank: row.rank_before_rerank,
     top1: row.top1,
     query_gold_overlap: row.query_gold_overlap,
     competitor_gold_overlap: row.competitor_gold_overlap,
@@ -159,6 +169,21 @@ async function json<T>(url: string): Promise<T> {
 
 function runDir(id: string) {
   return `${ROOT}/run/${id}`;
+}
+
+interface PublishedRun {
+  layout_version: number;
+  measures: string[];
+  calibration: RunManifest["calibration"];
+  manifest: { stages?: { stage: string }[] } & RunManifest["manifest"];
+}
+
+async function runManifest(id: string): Promise<RunManifest> {
+  const published = await json<PublishedRun>(`${runDir(id)}/manifest.json`);
+  return {
+    ...published,
+    reranked: (published.manifest.stages ?? []).some((stage) => stage.stage === "rerank"),
+  };
 }
 
 export interface Index {
@@ -188,8 +213,8 @@ export async function loadComparison(id: string): Promise<Comparison> {
   }
 
   const [left, right] = await Promise.all([
-    json<RunManifest>(`${runDir(manifest.left.run_id)}/manifest.json`),
-    json<RunManifest>(`${runDir(manifest.right.run_id)}/manifest.json`),
+    runManifest(manifest.left.run_id),
+    runManifest(manifest.right.run_id),
   ]);
 
   // Three small files and a Map, rather than a query engine. The engine

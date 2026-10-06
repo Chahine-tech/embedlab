@@ -1,5 +1,6 @@
 """The command line, and the config that refuses to be wrong quietly."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -175,64 +176,72 @@ def test_a_broken_config_exits_non_zero(tmp_path, capsys):
 
 
 def test_label_then_score_closes_the_loop(tmp_path, capsys):
-    """The whole point of Q5: a path from a published run to a measured rule."""
-    import csv
-
+    """A path from a published run to a measured rule, with no judge in between."""
     root = tmp_path / "ws"
     main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
     run_id = next((root / "run").iterdir()).name
     capsys.readouterr()
 
-    sheet = tmp_path / "labels.csv"
+    sheet = tmp_path / "labels.md"
     assert main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "3"]) == 0
     assert "deliberately absent" in capsys.readouterr().out
 
-    with sheet.open(encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle))
-    assert rows, "nothing drawn to label"
-    assert all(row["cause"] == "" for row in rows), "the sheet must arrive empty"
-    assert "hypothes" not in sheet.read_text(encoding="utf-8").lower()
+    drawn = sheet.read_text(encoding="utf-8")
+    assert "\n## " in drawn, "nothing drawn to label"
+    assert re.search(r"^cause:[ \t]*\S", drawn, re.M) is None, "the sheet must arrive empty"
+    assert "hypothes" not in drawn.lower()
 
-    for row in rows:
-        row["cause"] = "lexical_mismatch"
-    with sheet.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+    sheet.write_text(drawn.replace("\ncause:\n", "\ncause: lexical_mismatch\n"), encoding="utf-8")
 
     assert main(["--root", str(root), "score", run_id, str(sheet)]) == 0
-    reported = capsys.readouterr().out
-    assert "labelled failures compared" in reported
+    assert "labelled failures compared" in capsys.readouterr().out
 
 
 def test_scoring_an_empty_sheet_says_so(tmp_path, capsys):
     root = tmp_path / "ws"
     main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
     run_id = next((root / "run").iterdir()).name
-    sheet = tmp_path / "labels.csv"
+    sheet = tmp_path / "labels.md"
     main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "2"])
     capsys.readouterr()
 
     assert main(["--root", str(root), "score", run_id, str(sheet)]) == 1
-    assert "no rows have a cause yet" in capsys.readouterr().err
+    assert "no query has a cause yet" in capsys.readouterr().err
+
+
+def test_a_partly_filled_sheet_scores_the_part_that_is_filled(tmp_path, capsys):
+    """An hour of labelling gets interrupted. The answers already given still count."""
+    root = tmp_path / "ws"
+    main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
+    run_id = next((root / "run").iterdir()).name
+    sheet = tmp_path / "labels.md"
+    main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "3"])
+    capsys.readouterr()
+
+    sheet.write_text(
+        sheet.read_text(encoding="utf-8").replace("\ncause:\n", "\ncause: unexplained\n", 1),
+        encoding="utf-8",
+    )
+
+    assert main(["--root", str(root), "score", run_id, str(sheet)]) == 0
+    assert "1 labelled failures compared" in capsys.readouterr().out
 
 
 def test_an_unknown_cause_names_its_line(tmp_path, capsys):
     root = tmp_path / "ws"
     main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
     run_id = next((root / "run").iterdir()).name
-    sheet = tmp_path / "labels.csv"
+    sheet = tmp_path / "labels.md"
     main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "2"])
     capsys.readouterr()
 
-    body = sheet.read_text(encoding="utf-8").splitlines()
-    parts = body[1].split(",")
-    parts[1] = "its-just-bad"
-    body[1] = ",".join(parts)
-    sheet.write_text("\n".join(body) + "\n", encoding="utf-8")
+    lines = sheet.read_text(encoding="utf-8").splitlines()
+    broken = next(i for i, line in enumerate(lines) if line == "cause:")
+    lines[broken] = "cause: its-just-bad"
+    sheet.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     assert main(["--root", str(root), "score", run_id, str(sheet)]) == 1
-    assert ":2:" in capsys.readouterr().err
+    assert f"line {broken + 1}" in capsys.readouterr().err
 
 
 def test_a_system_can_declare_a_cut(tmp_path):
