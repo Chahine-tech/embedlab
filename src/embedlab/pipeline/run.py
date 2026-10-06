@@ -31,7 +31,8 @@ from embedlab.artifacts.run_io import (
 )
 from embedlab.artifacts.workspace import write_run_bundle
 from embedlab.cache.fingerprint import fingerprint
-from embedlab.domain.ids import Fingerprint, RunId
+from embedlab.domain.ids import Fingerprint, RunId, UnitId
+from embedlab.stages.chunk import fold_to_documents
 from embedlab.stages.diagnose import diagnose
 from embedlab.stages.evaluate import DEFAULT_MEASURES, evaluate
 
@@ -43,10 +44,18 @@ if TYPE_CHECKING:
     from embedlab.artifacts.workspace import Workspace
     from embedlab.cache.store import CacheStore
     from embedlab.domain.retrieval import Run
+    from embedlab.stages.chunk import Chunks
     from embedlab.stages.diagnose import Diagnosis
     from embedlab.stages.evaluate import Evaluation
 
 EVALUATE_IMPL_VERSION = 1
+
+_FOLD_HEADROOM = 5
+"""How much deeper to retrieve before folding chunks back to documents.
+
+Several chunks of one document can fill the chunk-level top-k, leaving fewer
+than k documents after the fold. Over-fetching costs nothing at this scale and
+keeps a chunked run comparable to an unchunked one at the same k."""
 
 STAGES_FOR_RETRIEVAL_DIFF = ("retrieve", "evaluate")
 """The stages a ranking comparison actually depends on. Passed to the gate so a
@@ -68,7 +77,9 @@ class RunOutcome:
     not in today's."""
 
 
-def retrieve_key(dataset: Dataset, retriever: Retriever, *, k: int) -> Fingerprint:
+def retrieve_key(
+    dataset: Dataset, retriever: Retriever, *, k: int, chunking: Mapping[str, object] | None = None
+) -> Fingerprint:
     """Cache key for a retrieval artifact.
 
     Everything that can change the output is in here: the corpus content, the
@@ -81,6 +92,9 @@ def retrieve_key(dataset: Dataset, retriever: Retriever, *, k: int) -> Fingerpri
             "stage": "retrieve",
             "corpus": dataset.corpus_fingerprint,
             "queries": fingerprint(dict(dataset.queries)),
+            # A different cut is a different corpus, not the same corpus seen
+            # differently, so it belongs in the key rather than beside it.
+            "chunking": dict(chunking) if chunking is not None else None,
             "params": fingerprint({"retriever": dict(retriever.descriptor), "k": k}),
         }
     )
@@ -113,9 +127,11 @@ def _retrieve(
     *,
     k: int,
     store: CacheStore | None,
+    chunks: Chunks | None = None,
 ) -> tuple[Run, StageProvenance, bool]:
-    key = retrieve_key(dataset, retriever, k=k)
-    params = fingerprint({"retriever": dict(retriever.descriptor), "k": k})
+    strategy = dict(chunks.strategy) if chunks is not None else None
+    key = retrieve_key(dataset, retriever, k=k, chunking=strategy)
+    params = fingerprint({"retriever": dict(retriever.descriptor), "k": k, "chunking": strategy})
 
     if store is not None and (entry := store.lookup("retrieve", key)) is not None:
         try:
@@ -131,8 +147,20 @@ def _retrieve(
         else:
             return read_run(entry), provenance, True
 
-    retriever.index(dataset.corpus)
-    run = retriever.search(dataset.queries, k=k)
+    if chunks is None:
+        # Widened explicitly: a Mapping's key is invariant, and saying so here
+        # is better than loosening the protocol until it stops distinguishing
+        # a document from a chunk at all.
+        units: dict[UnitId, str] = dict(dataset.corpus.items())
+        retriever.index(units)
+        run = retriever.search(dataset.queries, k=k)
+    else:
+        # Retrieve over chunks, report over documents. Over-fetching before the
+        # fold is deliberate: several chunks of one document can occupy the
+        # chunk-level top-k and leave the document-level one short.
+        retriever.index(dict(chunks.texts.items()))
+        chunked = retriever.search(dataset.queries, k=k * _FOLD_HEADROOM)
+        run = fold_to_documents(chunked, chunks, k=k)
 
     provenance = StageProvenance(
         stage="retrieve",
@@ -162,6 +190,7 @@ def execute(
     measures: Sequence[str] = DEFAULT_MEASURES,
     store: CacheStore | None = None,
     workspace: Workspace | None = None,
+    chunks: Chunks | None = None,
 ) -> RunOutcome:
     """Index, search, score and diagnose one retrieval configuration.
 
@@ -170,7 +199,7 @@ def execute(
     contract with every reader downstream, so nothing has to import this engine
     to use what it produced.
     """
-    run, retrieval, from_cache = _retrieve(dataset, retriever, k=k, store=store)
+    run, retrieval, from_cache = _retrieve(dataset, retriever, k=k, store=store, chunks=chunks)
 
     evaluation = evaluate(run, dataset.qrels, measures=measures)
     diagnosis = diagnose(run, dataset.qrels, dataset.corpus, dataset.queries)
@@ -182,6 +211,7 @@ def execute(
             "retriever": dict(retriever.descriptor),
             "k": k,
             "measures": tuple(measures),
+            "chunking": dict(chunks.strategy) if chunks is not None else None,
         }
     )
 
@@ -226,6 +256,8 @@ def execute(
         write_run_bundle(
             workspace.run_dir(str(manifest.run_id)),
             manifest_json=manifest.model_dump_json(),
+            dataset_name=dataset.name,
+            dataset_path=str(dataset.path),
             run=run,
             evaluation=evaluation,
             diagnosis=diagnosis,

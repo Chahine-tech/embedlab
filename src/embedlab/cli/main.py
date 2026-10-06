@@ -1,7 +1,8 @@
 """The command line.
 
-Three verbs, because the engine has three things worth asking it: run an
-experiment, list what a workspace holds, and describe one run. Everything
+Five verbs: run an experiment, list what a workspace holds, describe one
+run, draw failures for a person to name, and measure the rules against what
+they decided. Everything
 prints the identifiers it produced, so the next command can be typed without
 opening a file.
 
@@ -19,15 +20,24 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from embedlab.adapters.registry import build
 from embedlab.artifacts.dataset import DatasetError, load_dataset
 from embedlab.artifacts.workspace import Workspace, read_comparison_manifest, read_run_manifest
 from embedlab.cache.store import CacheStore
-from embedlab.cli.config import ConfigError, load_experiment
+from embedlab.cli.config import Chunking, ConfigError, load_experiment
+from embedlab.domain.ids import DocId, QueryId
 from embedlab.domain.taxonomy import Symptom
 from embedlab.pipeline.compare import compare
 from embedlab.pipeline.run import execute
+from embedlab.stages.chunk import Chunks, fixed_words, whole_documents
+
+if TYPE_CHECKING:
+    import polars as pl
+
+    from embedlab.artifacts.dataset import Dataset
+    from embedlab.stages.diagnose import Diagnosis
 
 DEFAULT_ROOT = Path("runs")
 
@@ -49,8 +59,13 @@ def run(arguments: argparse.Namespace) -> int:
 
     outcomes = {}
     for system in experiment.systems:
-        options = system.model_dump(exclude={"kind"})
+        options = system.model_dump(exclude={"kind", "chunking"})
         retriever = build(system.kind, **options)
+        chunks = _cut(dataset, system.chunking)
+        if chunks is not None:
+            per_document = chunks.per_document
+            average = sum(per_document.values()) / max(1, len(per_document))
+            print(f"\n  {system.name}: {len(chunks.texts):,} chunks ({average:.1f} per document)")
         outcome = execute(
             dataset,
             retriever,
@@ -58,6 +73,7 @@ def run(arguments: argparse.Namespace) -> int:
             measures=experiment.measures,
             store=store,
             workspace=workspace,
+            chunks=chunks,
         )
         outcomes[system.name] = outcome
         origin = " (reused)" if outcome.from_cache else ""
@@ -136,6 +152,199 @@ def show(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _cut(dataset: Dataset, chunking: Chunking | None) -> Chunks | None:
+    """Build the cut a system asked for, or none at all.
+
+    `None` and `whole` are not the same thing: `None` indexes the documents as
+    they are, `whole` goes through the chunking stage with one chunk each. They
+    produce the same ranking and deliberately different cache keys, so a run
+    that declared a strategy is never confused with one that declared nothing.
+    """
+    if chunking is None:
+        return None
+    if chunking.kind == "whole":
+        return whole_documents(dataset.corpus)
+    return fixed_words(dataset.corpus, size=chunking.size, overlap=chunking.overlap)
+
+
+def _published(workspace: Workspace, run_id: str) -> tuple[Path, dict]:
+    directory = workspace.run_dir(run_id)
+    if not directory.is_dir():
+        msg = f"no run {run_id!r} under {workspace.root}"
+        raise ValueError(msg)
+    return directory, read_run_manifest(directory)
+
+
+def label(arguments: argparse.Namespace) -> int:
+    """Draw failures for a person to name, without showing them the guess."""
+    import csv
+
+    import polars as pl
+
+    from embedlab.artifacts.run_io import read_run
+    from embedlab.stages.labelling import LABELLABLE, sample_failures
+
+    workspace, _ = _workspace(arguments.root)
+    directory, manifest = _published(workspace, arguments.run_id)
+
+    recorded = manifest.get("dataset")
+    if not isinstance(recorded, dict) or "path" not in recorded:
+        msg = f"{arguments.run_id} was published before run bundles recorded their dataset"
+        raise ValueError(msg)
+    dataset = load_dataset(Path(str(recorded["path"])))
+
+    evidence = pl.read_parquet(directory / "evidence.parquet")
+    hypotheses = pl.read_parquet(directory / "hypotheses.parquet")
+    diagnosis = _rebuild_diagnosis(evidence, hypotheses)
+
+    cases = sample_failures(
+        diagnosis,
+        read_run(directory),
+        dataset.queries,
+        dataset.corpus,
+        dataset.qrels,
+        size=arguments.sample,
+        seed=arguments.seed,
+    )
+
+    with arguments.out.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            ["query_id", "cause", "query", "symptom", "gold_rank", "gold_text", "retrieved"]
+        )
+        for case in cases:
+            retrieved = "\n".join(
+                f"{rank}. {'[gold] ' if relevant else ''}{text}"
+                for rank, _, text, relevant in case.retrieved
+            )
+            writer.writerow(
+                [
+                    case.query_id,
+                    "",
+                    case.query,
+                    case.symptom,
+                    "" if case.gold_rank is None else case.gold_rank,
+                    case.gold_text,
+                    retrieved,
+                ]
+            )
+
+    print(f"{len(cases)} failures written to {arguments.out}")
+    print(f"  seed {arguments.seed}, so the same draw comes back on a rerun")
+    print(f"  fill the 'cause' column with one of: {', '.join(LABELLABLE)}")
+    print(f"  then: embedlab score {arguments.run_id} {arguments.out}")
+    print("\n  The rules' own guess is deliberately absent: shown it, a labeller")
+    print("  agrees with it, and the agreement measured afterwards means nothing.")
+    return 0
+
+
+def score(arguments: argparse.Namespace) -> int:
+    """Measure the rules against what a person decided."""
+    import csv
+
+    import polars as pl
+
+    from embedlab.stages.labelling import score_labels, validate_label
+
+    workspace, _ = _workspace(arguments.root)
+    directory, _ = _published(workspace, arguments.run_id)
+
+    labels: dict[str, str] = {}
+    with arguments.sheet.open(encoding="utf-8", newline="") as handle:
+        for line, row in enumerate(csv.DictReader(handle), start=2):
+            raw = (row.get("cause") or "").strip()
+            if not raw:
+                continue
+            try:
+                labels[row["query_id"]] = validate_label(raw)
+            except ValueError as error:
+                msg = f"{arguments.sheet}:{line}: {error}"
+                raise ValueError(msg) from error
+
+    if not labels:
+        print(f"{arguments.sheet}: no rows have a cause yet", file=sys.stderr)
+        return 1
+
+    evidence = pl.read_parquet(directory / "evidence.parquet")
+    hypotheses = pl.read_parquet(directory / "hypotheses.parquet")
+    symptoms = dict(zip(evidence["query_id"], evidence["symptom"], strict=True))
+    proposed: dict[str, set[str]] = {}
+    for row in hypotheses.iter_rows(named=True):
+        proposed.setdefault(row["query_id"], set()).add(row["kind"])
+
+    agreement = score_labels(
+        symptoms,  # pyright: ignore[reportArgumentType]
+        {key: frozenset(value) for key, value in proposed.items()},  # pyright: ignore[reportArgumentType]
+        labels,  # pyright: ignore[reportArgumentType]
+    )
+
+    print(f"{arguments.run_id} against {arguments.sheet}")
+    print(f"  {agreement.compared} labelled failures compared")
+    print(
+        f"  the rules named a cause the labeller agreed with {agreement.agreed} times"
+        f" ({agreement.accuracy:.0%})"
+    )
+    if agreement.per_cause:
+        print("\n  per cause the rules proposed:")
+        for cause, (said, confirmed) in sorted(agreement.per_cause.items()):
+            print(
+                f"    {cause:<18} proposed {said:>3}, confirmed {confirmed:>3}"
+                f"  ({confirmed / said:.0%})"
+                if said
+                else f"    {cause}"
+            )
+    if agreement.missed:
+        print("\n  causes a person named that no rule proposed:")
+        for cause, count in sorted(agreement.missed.items(), key=lambda pair: -pair[1]):
+            print(f"    {cause:<18} {count:>3}")
+    return 0
+
+
+def _rebuild_diagnosis(evidence: pl.DataFrame, hypotheses: pl.DataFrame) -> Diagnosis:
+    """Reconstruct just enough of a diagnosis from the published tables."""
+    from embedlab.domain.taxonomy import FailureKind, Producer
+    from embedlab.domain.taxonomy import Symptom as SymptomEnum
+    from embedlab.stages.diagnose import Calibration, Diagnosis, Evidence, Hypothesis
+
+    found: dict[QueryId, Evidence] = {}
+    for row in evidence.iter_rows(named=True):
+        found[QueryId(row["query_id"])] = Evidence(
+            query_id=QueryId(row["query_id"]),
+            symptom=SymptomEnum(row["symptom"]),
+            gold_rank=row["gold_rank"],
+            best_relevant=None if row["best_relevant"] is None else DocId(row["best_relevant"]),
+            top1=DocId(row["top1"]),
+            top1_is_relevant=row["top1_is_relevant"],
+            score_margin=row["score_margin"],
+            query_gold_overlap=row["query_gold_overlap"],
+            competitor_gold_overlap=row["competitor_gold_overlap"],
+            query_token_count=row["query_token_count"],
+            tied_with_top1=row["tied_with_top1"],
+            gold_score_is_zero=row["gold_score_is_zero"],
+            retrieved_with_zero_score=row["retrieved_with_zero_score"],
+        )
+
+    proposed: dict[QueryId, list[Hypothesis]] = {}
+    for row in hypotheses.iter_rows(named=True):
+        proposed.setdefault(QueryId(row["query_id"]), []).append(
+            Hypothesis(
+                query_id=QueryId(row["query_id"]),
+                kind=FailureKind(row["kind"]),
+                confidence=row["confidence"],
+                producer=Producer(row["producer"]),
+                because=(row["because"],),
+            )
+        )
+
+    return Diagnosis(
+        evidence=found,
+        hypotheses={key: tuple(value) for key, value in proposed.items()},
+        calibration=Calibration(
+            n=len(found), low_query_gold_overlap=0.0, high_competitor_gold_overlap=0.0
+        ),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="embedlab", description=__doc__)
     parser.add_argument(
@@ -152,6 +361,18 @@ def main(argv: list[str] | None = None) -> int:
     shower = commands.add_parser("show", help="one run's health")
     shower.add_argument("run_id")
     shower.set_defaults(handler=show)
+
+    labeller = commands.add_parser("label", help="draw failures for a person to name")
+    labeller.add_argument("run_id")
+    labeller.add_argument("--out", type=Path, default=Path("labels.csv"))
+    labeller.add_argument("--sample", type=int, default=50)
+    labeller.add_argument("--seed", type=int, default=20261006)
+    labeller.set_defaults(handler=label)
+
+    scorer = commands.add_parser("score", help="measure the rules against those labels")
+    scorer.add_argument("run_id")
+    scorer.add_argument("sheet", type=Path)
+    scorer.set_defaults(handler=score)
 
     arguments = parser.parse_args(sys.argv[1:] if argv is None else argv)
     try:

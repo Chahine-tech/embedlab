@@ -17,9 +17,9 @@ cheap. What it adds is the layer that decides how much of a diff to believe.
 
 A build system, not a service. Each stage is a pure function from the
 fingerprint of its inputs to an immutable artifact on disk
-(`retrieve -> evaluate -> diagnose -> diff`; chunking and reranking are not
-built yet, and embedding lives inside the dense adapter rather than as a stage
-of its own). Caching is content-addressed, so if two runs share an upstream
+(`chunk -> retrieve -> evaluate -> diagnose -> diff`; reranking is not built
+yet, and embedding lives inside the dense adapter rather than as a stage of its
+own). Caching is content-addressed, so if two runs share an upstream
 fingerprint we
 *know* the difference between them cannot come from that stage. The diff
 semantics fall out of the DAG instead of being guessed after the fact.
@@ -124,6 +124,52 @@ comparison would be against the wrong thing with nothing to show for it:
 error: experiments/scifact.yaml: 1 problem(s)
   systems.1.bm25.stemer: Extra inputs are not permitted
 ```
+
+## Chunking
+
+Labels are per document; chunking makes retrieval per chunk. The two are not
+interchangeable, so a chunked run is folded back before anything is scored:
+each document keeps the score of its best chunk.
+
+That fold is a choice, not a convention. A document whose evidence is spread
+thinly across many chunks scores as its single best chunk, which is the failure
+mode chunking is suspected of causing in the first place.
+
+```yaml
+systems:
+  - name: whole
+    kind: bm25
+    chunking: {kind: whole}
+  - name: words-120
+    kind: bm25
+    chunking: {kind: fixed_words, size: 120, overlap: 30}
+```
+
+`experiments/chunking.yaml` runs that question on SciFact. The answer there is
+worth knowing before trusting any single number: at 120-word chunks only
+nDCG@10 detects the damage (p=0.032), while recall and MRR stay inside the
+noise. At 60 words all three measures turn real and the damage doubles.
+
+## Measuring the rules against a person
+
+The diagnosis rules decide what a failure is called, and dataset-relative
+thresholds fixed their scale without making their labels true. There is a path
+from a published run to a measured rule:
+
+```bash
+uv run embedlab label bm25-197cb88c --sample 50 --out labels.csv
+# fill the empty `cause` column, then
+uv run embedlab score bm25-197cb88c labels.csv
+```
+
+The sheet carries the query, the gold document, what was retrieved and the
+deterministic evidence, and **never the rule's own guess**: shown it, a
+labeller agrees with it, and the agreement measured afterwards is the rules
+marking their own homework. `unexplained` is an allowed answer, because a
+person who cannot name a cause must be able to say so.
+
+The draw is seeded. Which failures someone spent an hour on is part of the
+result, so a rerun produces the same ones.
 
 ## Try it
 

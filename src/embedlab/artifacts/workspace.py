@@ -160,6 +160,8 @@ def write_run_bundle(
     directory: Path,
     *,
     manifest_json: str,
+    dataset_name: str,
+    dataset_path: str,
     run: Run,
     evaluation: Evaluation,
     diagnosis: Diagnosis,
@@ -172,6 +174,11 @@ def write_run_bundle(
             {
                 "layout_version": LAYOUT_VERSION,
                 "manifest": json.loads(manifest_json),
+                # Where the data came from, not only its fingerprint. A reader
+                # that wants the document behind a failure needs the corpus,
+                # and a run that cannot say where it was computed makes that
+                # a guess.
+                "dataset": {"name": dataset_name, "path": dataset_path},
                 "measures": list(evaluation.measures),
                 "calibration": {
                     "n": diagnosis.calibration.n,

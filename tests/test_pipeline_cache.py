@@ -97,6 +97,7 @@ def test_relabelling_the_dataset_does_not_invalidate_retrieval(mini, store):
 
     relabelled = type(mini)(
         name=mini.name,
+        path=mini.path,
         corpus=mini.corpus,
         queries=mini.queries,
         qrels={next(iter(mini.judged_queries)): {next(iter(mini.corpus)): 1}},

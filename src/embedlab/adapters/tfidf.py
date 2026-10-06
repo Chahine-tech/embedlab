@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
-from embedlab.domain.ids import DocId, QueryId
+from embedlab.domain.ids import QueryId, UnitId
 from embedlab.domain.retrieval import order_deterministically
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ class TfidfRetriever:
         self._smooth_idf = smooth_idf
         self._dtype = dtype
 
-        self._doc_ids: list[DocId] = []
+        self._unit_ids: list[UnitId] = []
         self._vocabulary: dict[str, int] = {}
         self._idf: np.ndarray | None = None
         self._matrix: sparse.csr_matrix | None = None
@@ -118,12 +118,12 @@ class TfidfRetriever:
         norms[norms == 0.0] = 1.0
         return sparse.diags(1.0 / norms) @ matrix
 
-    def index(self, corpus: Mapping[DocId, str]) -> None:
-        self._doc_ids = sorted(corpus)
+    def index(self, units: Mapping[UnitId, str]) -> None:
+        self._unit_ids = sorted(units)
         self._vocabulary = {}
-        counts = self._vectorize([corpus[doc_id] for doc_id in self._doc_ids], fit=True)
+        counts = self._vectorize([units[unit_id] for unit_id in self._unit_ids], fit=True)
 
-        n_docs = len(self._doc_ids)
+        n_docs = len(self._unit_ids)
         # getnnz counts stored entries per column directly. The vectoriser only
         # stores non-zero term frequencies, so that is the document frequency,
         # and it avoids materialising a boolean matrix the size of the corpus.
@@ -149,13 +149,15 @@ class TfidfRetriever:
         vectors = self._l2_normalize(counts @ sparse.diags(idf))
         similarities = (vectors @ matrix.T).toarray()
 
-        effective_k = min(k, len(self._doc_ids))
+        effective_k = min(k, len(self._unit_ids))
         results: dict[QueryId, list[Ranked]] = {}
         for position, query_id in enumerate(query_ids):
             row = similarities[position]
             # argpartition then our deterministic tie-break; argsort alone would
             # leave equal scores in an order that depends on the backend.
             candidates = np.argpartition(-row, effective_k - 1)[:effective_k]
-            scored = {self._doc_ids[int(index)]: float(row[index]) for index in candidates}
+            scored: dict[UnitId, float] = {
+                self._unit_ids[int(index)]: float(row[index]) for index in candidates
+            }
             results[QueryId(query_id)] = order_deterministically(scored, effective_k)
         return results

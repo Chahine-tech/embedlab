@@ -219,7 +219,11 @@ def collect_evidence(
     idf: Mapping[str, float] | None = None,
     queries: Mapping[QueryId, str],
 ) -> dict[QueryId, Evidence]:
-    """Compute the deterministic facts for every judged query."""
+    """Compute the deterministic facts for every judged query.
+
+    Expects a document-level run. A chunked retrieval is folded back before it
+    arrives, so the units here really are the documents the labels talk about.
+    """
     weights = idf if idf is not None else _inverse_document_frequency(corpus)
     evidence: dict[QueryId, Evidence] = {}
 
@@ -233,10 +237,10 @@ def collect_evidence(
 
         gold_rank = rank_of_best_relevant(ranked, labels)
         best_relevant = next(
-            (item.doc_id for item in ranked if labels.get(item.doc_id, 0) > 0), None
+            (DocId(item.doc_id) for item in ranked if labels.get(DocId(item.doc_id), 0) > 0), None
         )
         top = ranked[0]
-        top1_is_relevant = labels.get(top.doc_id, 0) > 0
+        top1_is_relevant = labels.get(DocId(top.doc_id), 0) > 0
 
         gold_score = (
             next(item.score for item in ranked if item.doc_id == best_relevant)
@@ -271,14 +275,14 @@ def collect_evidence(
             symptom=symptom,
             gold_rank=gold_rank,
             best_relevant=best_relevant,
-            top1=top.doc_id,
+            top1=DocId(top.doc_id),
             top1_is_relevant=top1_is_relevant,
             score_margin=margin,
             query_gold_overlap=_weighted_overlap(query_tokens, gold_tokens, weights),
             competitor_gold_overlap=(
                 0.0
                 if top1_is_relevant
-                else _weighted_overlap(_tokens(corpus[top.doc_id]), gold_tokens, weights)
+                else _weighted_overlap(_tokens(corpus[DocId(top.doc_id)]), gold_tokens, weights)
             ),
             query_token_count=len(query_tokens),
             tied_with_top1=(not top1_is_relevant and margin == 0.0),

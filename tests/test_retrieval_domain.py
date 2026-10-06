@@ -1,17 +1,20 @@
 """Ordering and gold-rank semantics: the arithmetic every diff sits on."""
 
-from embedlab.domain.ids import DocId
+from embedlab.domain.ids import DocId, UnitId
 from embedlab.domain.retrieval import Ranked, order_deterministically, rank_of_best_relevant
 
 
-def scored(**by_doc: float) -> dict[DocId, float]:
+def scored(**by_doc: float) -> dict[UnitId, float]:
     """Scores keyed by DocId.
 
     The NewType is the point: it is what stops a ChunkId being passed where a
     DocId belongs once chunking exists, so tests go through the constructor
     rather than weakening the signature to plain `str`.
     """
-    return {DocId(doc_id): score for doc_id, score in by_doc.items()}
+    result: dict[UnitId, float] = {}
+    for doc_id, score in by_doc.items():
+        result[DocId(doc_id)] = score
+    return result
 
 
 def test_orders_by_descending_score():

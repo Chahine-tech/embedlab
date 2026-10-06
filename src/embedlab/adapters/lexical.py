@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from embedlab.domain.ids import DocId, QueryId
+from embedlab.domain.ids import QueryId, UnitId
 from embedlab.domain.retrieval import order_deterministically
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ class BM25Retriever:
         self._lower = lower
         self._dtype = dtype
 
-        self._doc_ids: list[DocId] = []
+        self._unit_ids: list[UnitId] = []
         self._index: Any | None = None
 
     @property
@@ -110,13 +110,13 @@ class BM25Retriever:
         msg = f"unknown stemmer {self._stemmer!r}"
         raise ValueError(msg)
 
-    def index(self, corpus: Mapping[DocId, str]) -> None:
+    def index(self, units: Mapping[UnitId, str]) -> None:
         import bm25s
 
         # Sorted so the internal document order (and therefore any tie-break
         # the backend happens to apply) does not depend on dict ordering.
-        self._doc_ids = sorted(corpus)
-        tokens = self._tokenize([corpus[doc_id] for doc_id in self._doc_ids])
+        self._unit_ids = sorted(units)
+        tokens = self._tokenize([units[unit_id] for unit_id in self._unit_ids])
         index = bm25s.BM25(k1=self._k1, b=self._b, method=self._method, dtype=self._dtype)
         index.index(tokens, show_progress=False)
         self._index = index
@@ -131,13 +131,13 @@ class BM25Retriever:
         query_ids = list(queries)
         tokens = self._tokenize([queries[query_id] for query_id in query_ids])
         # bm25s cannot return more documents than it holds.
-        effective_k = min(k, len(self._doc_ids))
+        effective_k = min(k, len(self._unit_ids))
         indices, scores = self._index.retrieve(tokens, k=effective_k, show_progress=False)
 
         results: dict[QueryId, list[Ranked]] = {}
         for position, query_id in enumerate(query_ids):
-            scored = {
-                self._doc_ids[int(doc_index)]: float(score)
+            scored: dict[UnitId, float] = {
+                self._unit_ids[int(doc_index)]: float(score)
                 for doc_index, score in zip(indices[position], scores[position], strict=True)
             }
             # Re-ordered through our own tie-break so a rerun cannot shuffle

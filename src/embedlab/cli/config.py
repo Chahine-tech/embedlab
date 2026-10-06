@@ -25,9 +25,30 @@ class ConfigError(ValueError):
     """The experiment file cannot be used, with the reason."""
 
 
+class WholeChunking(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["whole"] = "whole"
+
+
+class FixedWordsChunking(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["fixed_words"]
+    size: int = Field(default=180, ge=1)
+    overlap: int = Field(default=40, ge=0)
+
+
+Chunking = Annotated[WholeChunking | FixedWordsChunking, Field(discriminator="kind")]
+
+
 class _System(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
+    chunking: Chunking | None = None
+    """How this system cuts the corpus, if at all.
+
+    Per system rather than per experiment, because comparing two cuts of the
+    same corpus with the same model is the question chunking raises.
+    """
 
 
 class BM25System(_System):

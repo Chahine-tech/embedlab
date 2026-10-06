@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from embedlab.domain.ids import DocId, QueryId
+from embedlab.domain.ids import DocId, QueryId, UnitId
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -22,7 +22,14 @@ class Ranked:
     `rank` is 1-based, matching how every report and TREC run file reads.
     """
 
-    doc_id: DocId
+    doc_id: UnitId
+    """Whichever unit was retrieved.
+
+    A chunk-level run holds ChunkIds here. Those never reach an artifact: a run
+    is folded back to documents before it is published, so the `doc_id` column
+    on disk really does hold documents.
+    """
+
     rank: int
     score: float
 
@@ -43,12 +50,14 @@ def rank_of_best_relevant(ranked: Sequence[Ranked], relevant: Mapping[DocId, int
     one of them would invent failures.
     """
     for item in ranked:
-        if relevant.get(item.doc_id, 0) > 0:
+        # Only meaningful on a document-level run. A chunk-level one is folded
+        # before it reaches here, so the unit really is a document.
+        if relevant.get(DocId(item.doc_id), 0) > 0:
             return item.rank
     return None
 
 
-def order_deterministically(scored: Mapping[DocId, float], k: int) -> list[Ranked]:
+def order_deterministically(scored: Mapping[UnitId, float], k: int) -> list[Ranked]:
     """Take the top-k, breaking score ties by doc_id ascending.
 
     The tie-break is not cosmetic. Two documents with identical scores would
@@ -59,6 +68,6 @@ def order_deterministically(scored: Mapping[DocId, float], k: int) -> list[Ranke
     """
     ordered = sorted(scored.items(), key=lambda pair: (-pair[1], pair[0]))
     return [
-        Ranked(doc_id=DocId(doc_id), rank=position, score=float(score))
-        for position, (doc_id, score) in enumerate(ordered[:k], start=1)
+        Ranked(doc_id=unit_id, rank=position, score=float(score))
+        for position, (unit_id, score) in enumerate(ordered[:k], start=1)
     ]

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from embedlab.domain.ids import DocId, QueryId
+    from embedlab.domain.ids import QueryId, UnitId
     from embedlab.domain.retrieval import Ranked
 
 
@@ -37,7 +37,9 @@ class Retriever(Protocol):
         """Fully determines behaviour. Fingerprinted; omissions cause fake diffs."""
         ...
 
-    def index(self, corpus: Mapping[DocId, str]) -> None: ...
+    def index(self, units: Mapping[UnitId, str]) -> None:
+        """Index whatever units it is given: documents, or chunks of them."""
+        ...
 
     def search(self, queries: Mapping[QueryId, str], *, k: int) -> dict[QueryId, list[Ranked]]:
         """Ranked results per query, best first, ties broken deterministically."""

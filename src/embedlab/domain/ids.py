@@ -24,3 +24,12 @@ Fingerprint = NewType("Fingerprint", str)
 
 RunId = NewType("RunId", str)
 """Identity of one (config, engine) execution. Derived from fingerprints."""
+
+type UnitId = DocId | ChunkId
+"""Whatever a retriever was given to index.
+
+A retriever indexes retrievable units. Without chunking those are documents;
+with it they are chunks, and the two are not interchangeable. Naming the union
+is what lets a retriever be honest about taking either without the two
+collapsing back into one type.
+"""

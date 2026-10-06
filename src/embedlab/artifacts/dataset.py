@@ -32,6 +32,9 @@ class Dataset:
     """A corpus, a set of queries, and graded labels linking them."""
 
     name: str
+    path: Path
+    """Where it was loaded from, so a published run can point back at it."""
+
     corpus: dict[DocId, str]
     queries: dict[QueryId, str]
     qrels: dict[QueryId, dict[DocId, int]]
@@ -136,6 +139,7 @@ def load_dataset(directory: Path, *, name: str | None = None) -> Dataset:
 
     return Dataset(
         name=name if name is not None else directory.name,
+        path=directory,
         corpus=corpus,
         queries=queries,
         qrels=qrels,

@@ -1,0 +1,25 @@
+# How much does cutting the corpus cost? SciFact abstracts are short, so this
+# asks whether splitting a coherent argument is worth the finer granularity.
+#
+# Chunking is declared per system, because comparing two cuts of the same
+# corpus with the same retriever is the question.
+name: chunk size on SciFact
+
+dataset: datasets/beir-scifact-test
+k: 10
+measures: [nDCG@10, R@10, RR]
+
+baseline: whole
+
+systems:
+  - name: whole
+    kind: bm25
+    chunking: {kind: whole}
+
+  - name: words-120
+    kind: bm25
+    chunking: {kind: fixed_words, size: 120, overlap: 30}
+
+  - name: words-60
+    kind: bm25
+    chunking: {kind: fixed_words, size: 60, overlap: 15}

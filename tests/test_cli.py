@@ -172,3 +172,110 @@ def test_a_broken_config_exits_non_zero(tmp_path, capsys):
     bad = write(tmp_path, "name: t\ndataset: nowhere\nsystems: []\n")
     assert main(["--root", str(tmp_path / "ws"), "run", str(bad)]) == 1
     assert "error:" in capsys.readouterr().err
+
+
+def test_label_then_score_closes_the_loop(tmp_path, capsys):
+    """The whole point of Q5: a path from a published run to a measured rule."""
+    import csv
+
+    root = tmp_path / "ws"
+    main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
+    run_id = next((root / "run").iterdir()).name
+    capsys.readouterr()
+
+    sheet = tmp_path / "labels.csv"
+    assert main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "3"]) == 0
+    assert "deliberately absent" in capsys.readouterr().out
+
+    with sheet.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows, "nothing drawn to label"
+    assert all(row["cause"] == "" for row in rows), "the sheet must arrive empty"
+    assert "hypothes" not in sheet.read_text(encoding="utf-8").lower()
+
+    for row in rows:
+        row["cause"] = "lexical_mismatch"
+    with sheet.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    assert main(["--root", str(root), "score", run_id, str(sheet)]) == 0
+    reported = capsys.readouterr().out
+    assert "labelled failures compared" in reported
+
+
+def test_scoring_an_empty_sheet_says_so(tmp_path, capsys):
+    root = tmp_path / "ws"
+    main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
+    run_id = next((root / "run").iterdir()).name
+    sheet = tmp_path / "labels.csv"
+    main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "2"])
+    capsys.readouterr()
+
+    assert main(["--root", str(root), "score", run_id, str(sheet)]) == 1
+    assert "no rows have a cause yet" in capsys.readouterr().err
+
+
+def test_an_unknown_cause_names_its_line(tmp_path, capsys):
+    root = tmp_path / "ws"
+    main(["--root", str(root), "run", str(write(tmp_path, MINIMAL.format(dataset=FIXTURE)))])
+    run_id = next((root / "run").iterdir()).name
+    sheet = tmp_path / "labels.csv"
+    main(["--root", str(root), "label", run_id, "--out", str(sheet), "--sample", "2"])
+    capsys.readouterr()
+
+    body = sheet.read_text(encoding="utf-8").splitlines()
+    parts = body[1].split(",")
+    parts[1] = "its-just-bad"
+    body[1] = ",".join(parts)
+    sheet.write_text("\n".join(body) + "\n", encoding="utf-8")
+
+    assert main(["--root", str(root), "score", run_id, str(sheet)]) == 1
+    assert ":2:" in capsys.readouterr().err
+
+
+def test_a_system_can_declare_a_cut(tmp_path):
+    body = MINIMAL.format(dataset=FIXTURE) + "    chunking: {kind: fixed_words, size: 40}\n"
+    experiment = load_experiment(write(tmp_path, body))
+    chunking = experiment.systems[0].chunking
+    assert chunking is not None
+    assert chunking.kind == "fixed_words"
+    assert chunking.size == 40
+
+
+def test_an_unknown_cut_is_refused(tmp_path):
+    body = MINIMAL.format(dataset=FIXTURE) + "    chunking: {kind: semantic}\n"
+    with pytest.raises(ConfigError, match=r"whole|fixed_words"):
+        load_experiment(write(tmp_path, body))
+
+
+def test_an_impossible_cut_is_refused_before_anything_runs(tmp_path):
+    body = MINIMAL.format(dataset=FIXTURE) + "    chunking: {kind: fixed_words, size: 0}\n"
+    with pytest.raises(ConfigError, match="size"):
+        load_experiment(write(tmp_path, body))
+
+
+def test_declaring_no_cut_is_not_the_same_as_declaring_whole(tmp_path, capsys):
+    """Same ranking, different cache key: a run that declared a strategy must
+    never be mistaken for one that declared nothing."""
+    body = (
+        MINIMAL.format(dataset=FIXTURE)
+        + "  - name: b\n    kind: bm25\n    chunking: {kind: whole}\n"
+    )
+    root = tmp_path / "ws"
+    assert main(["--root", str(root), "run", str(write(tmp_path, body))]) == 0
+    capsys.readouterr()
+
+    published = sorted(path.name for path in (root / "run").iterdir())
+    assert len(published) == 2, published
+
+
+def test_a_cut_is_reported_before_the_run(tmp_path, capsys):
+    body = (
+        f"name: t\ndataset: {FIXTURE}\nsystems:\n  - name: a\n    kind: bm25\n"
+        "    chunking: {kind: fixed_words, size: 40, overlap: 10}\n"
+    )
+    root = tmp_path / "ws"
+    assert main(["--root", str(root), "run", str(write(tmp_path, body))]) == 0
+    assert "chunks (" in capsys.readouterr().out

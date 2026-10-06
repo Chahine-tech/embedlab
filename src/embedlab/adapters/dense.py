@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from embedlab.domain.ids import DocId, QueryId
+from embedlab.domain.ids import QueryId, UnitId
 from embedlab.domain.retrieval import order_deterministically
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ class DenseRetriever:
 
         self._model: Any | None = None
         self._resolved_revision: str | None = revision
-        self._doc_ids: list[DocId] = []
+        self._unit_ids: list[UnitId] = []
         self._matrix: np.ndarray | None = None
 
     @property
@@ -174,10 +174,10 @@ class DenseRetriever:
             vectors = vectors / norms
         return vectors
 
-    def index(self, corpus: Mapping[DocId, str]) -> None:
-        self._doc_ids = sorted(corpus)
+    def index(self, units: Mapping[UnitId, str]) -> None:
+        self._unit_ids = sorted(units)
         self._matrix = self._encode(
-            [corpus[doc_id] for doc_id in self._doc_ids], self._document_prompt
+            [units[unit_id] for unit_id in self._unit_ids], self._document_prompt
         )
 
     def search(self, queries: Mapping[QueryId, str], *, k: int) -> dict[QueryId, list[Ranked]]:
@@ -193,12 +193,14 @@ class DenseRetriever:
         # accumulation over thousands of documents loses more than it saves.
         similarities = vectors.astype(np.float32) @ self._matrix.astype(np.float32).T
 
-        effective_k = min(k, len(self._doc_ids))
+        effective_k = min(k, len(self._unit_ids))
         results: dict[QueryId, list[Ranked]] = {}
         for position, query_id in enumerate(query_ids):
             row = similarities[position]
             candidates = np.argpartition(-row, effective_k - 1)[:effective_k]
-            scored = {self._doc_ids[int(i)]: float(row[i]) for i in candidates}
+            scored: dict[UnitId, float] = {
+                self._unit_ids[int(i)]: float(row[i]) for i in candidates
+            }
             results[QueryId(query_id)] = order_deterministically(scored, effective_k)
         return results
 
