@@ -2,9 +2,9 @@
 
 import pytest
 
-from embedlab.artifacts.comparability import Trust, Verdict
 from embedlab.domain.ids import DocId, QueryId
 from embedlab.domain.retrieval import Ranked
+from embedlab.domain.trust import Trust, Verdict
 from embedlab.stages.diagnose import diagnose
 from embedlab.stages.diff import compare_runs, failure_sets
 

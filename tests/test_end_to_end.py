@@ -2,8 +2,9 @@
 
 import pytest
 
-from embedlab.artifacts.comparability import Trust, assess
+from embedlab.artifacts.comparability import assess
 from embedlab.domain.taxonomy import Symptom
+from embedlab.domain.trust import Trust
 from embedlab.pipeline.run import STAGES_FOR_RETRIEVAL_DIFF, execute
 from embedlab.stages.diff import compare_runs
 

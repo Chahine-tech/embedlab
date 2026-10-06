@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 from embedlab.domain.ids import QueryId
 from embedlab.domain.retrieval import rank_of_best_relevant
 from embedlab.domain.taxonomy import Symptom
+from embedlab.domain.trust import Verdict
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from embedlab.artifacts.comparability import Verdict
     from embedlab.domain.retrieval import Qrels, Run
     from embedlab.stages.diagnose import Diagnosis
     from embedlab.stages.significance import Significance

@@ -1,0 +1,33 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # The lexical and measures extras compile pytrec_eval and are needed by
+      # most of the suite. The local extra pulls torch and is left out: the
+      # tests it unlocks need model weights, and downloading them on every push
+      # would cost more than it catches.
+      - run: uv sync --extra lexical --extra measures
+
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run basedpyright
+      - run: uv run basedpyright -p typecheck-strict.json
+      - run: uv run lint-imports
+      - run: uv run pytest
+
+      # The core must stay installable without any extra, and the suite must
+      # skip cleanly rather than fail when one is absent.
+      - run: uv sync
+      - run: uv run pytest

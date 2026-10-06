@@ -15,17 +15,16 @@ from pathlib import Path
 
 from embedlab.adapters.lexical import BM25Retriever
 from embedlab.adapters.tfidf import TfidfRetriever
-from embedlab.artifacts.comparability import assess
 from embedlab.artifacts.dataset import load_dataset
 from embedlab.artifacts.manifest import RunManifest
-from embedlab.artifacts.provenance import relevant_source_changed
+from embedlab.artifacts.workspace import Workspace
 from embedlab.cache.store import CacheStore
 from embedlab.domain.ids import QueryId
 from embedlab.domain.taxonomy import Symptom
-from embedlab.pipeline.run import STAGES_FOR_RETRIEVAL_DIFF, RunOutcome, execute
+from embedlab.pipeline.compare import compare
+from embedlab.pipeline.run import RunOutcome, execute
 from embedlab.stages.diagnose import Diagnosis
-from embedlab.stages.diff import compare_runs, failure_sets
-from embedlab.stages.significance import compare_measures
+from embedlab.stages.diff import failure_sets
 
 RULE = "─" * 72
 
@@ -109,46 +108,17 @@ def main(argv: list[str] | None = None) -> int:
         f"{len(dataset.judged_queries)} judged queries\n{RULE}"
     )
 
-    store = CacheStore(Path("runs") / "cache")
-    left = execute(dataset, BM25Retriever(), k=10, store=store)
-    right = execute(dataset, TfidfRetriever(), k=10, store=store)
+    root = Path("runs")
+    store = CacheStore(root / "cache")
+    workspace = Workspace(root=root)
+    left = execute(dataset, BM25Retriever(), k=10, store=store, workspace=workspace)
+    right = execute(dataset, TfidfRetriever(), k=10, store=store, workspace=workspace)
 
     for outcome in (left, right):
         _health(outcome)
 
-    # Asked per stage, against the commits recorded on each stage's own
-    # provenance: a cached artifact may be far older than the run reusing it.
-    code_changed = {
-        name: relevant_source_changed(
-            _commit_for(left.manifest, name),
-            _commit_for(right.manifest, name),
-            stages=[name],
-        )
-        for name in STAGES_FOR_RETRIEVAL_DIFF
-    }
-    trust = assess(
-        left.manifest,
-        right.manifest,
-        stages=STAGES_FOR_RETRIEVAL_DIFF,
-        code_changed=code_changed,
-    )
-
-    significance = compare_measures(
-        left.evaluation.per_query,
-        right.evaluation.per_query,
-        measures=left.evaluation.measures,
-    )
-    diff = compare_runs(
-        left.run,
-        right.run,
-        dataset.qrels,
-        left_name=left.name,
-        right_name=right.name,
-        trust=trust,
-        significance=significance,
-        left_diagnosis=left.diagnosis,
-        right_diagnosis=right.diagnosis,
-    )
+    comparison = compare(left, right, dataset, workspace=workspace)
+    diff, trust = comparison.diff, comparison.diff.trust
 
     print(f"\n{RULE}\nWHAT CHANGED?   {diff.left_name} → {diff.right_name}\n{RULE}")
     print(f"\n  {diff.headline}")
@@ -188,6 +158,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n{RULE}\nFAILS FOR BOTH SYSTEMS\n{RULE}")
         for query_id in shared:
             print(f"  {query_id:<16} {queries_hint(left.diagnosis, query_id)}")
+
+    print(f"\n{RULE}\nPUBLISHED\n{RULE}")
+    print(f"  run         {workspace.run_dir(left.manifest.run_id)}")
+    print(f"  run         {workspace.run_dir(right.manifest.run_id)}")
+    print(f"  comparison  {workspace.comparison_dir(comparison.comparison_id)}")
 
     return 0
 

@@ -8,9 +8,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from embedlab.artifacts.comparability import Trust, assess
+from embedlab.artifacts.comparability import assess
 from embedlab.artifacts.manifest import Environment, RunManifest, StageProvenance
 from embedlab.domain.ids import Fingerprint, RunId
+from embedlab.domain.trust import Trust
 
 CLEAN_PACKAGES = {"numpy": "2.5.3", "bm25s": "0.3.12", "ranx": "0.3.21"}
 

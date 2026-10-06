@@ -20,49 +20,21 @@ that fires on irrelevant changes gets overridden by reflex.
 This module is pure. Whether source changed between two commits needs git, so
 the caller determines it and passes it in, which keeps the policy testable
 without a repository.
+
+`Trust` and `Verdict` live in the domain: a pure stage has to carry a verdict
+without depending on this layer, and the words belong to the whole system
+rather than to the rules that reach them.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from embedlab.artifacts.manifest import Environment, RunManifest
+from embedlab.domain.trust import SEVERITY, Trust, Verdict
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
-
-
-class Trust(StrEnum):
-    """How much of a diff between two runs to believe."""
-
-    IDENTICAL = "identical"
-    """Same environment, same stage semantics, both clean. Fully trustworthy."""
-
-    COMPARABLE = "comparable"
-    """Provenance differs but nothing that can move the numbers does."""
-
-    SUSPECT = "suspect"
-    """Something that can move the numbers differs. The diff still renders, with
-    every difference named. This is where a forgotten impl_version bump lands,
-    reached mechanically, without relying on anyone having remembered."""
-
-    INCOMPARABLE = "incomparable"
-    """The comparison is meaningless. Refuse."""
-
-
-_SEVERITY = {Trust.IDENTICAL: 0, Trust.COMPARABLE: 1, Trust.SUSPECT: 2, Trust.INCOMPARABLE: 3}
-
-
-@dataclass(frozen=True)
-class Verdict:
-    trust: Trust
-    reasons: tuple[str, ...] = ()
-
-    @property
-    def refuses(self) -> bool:
-        return self.trust is Trust.INCOMPARABLE
 
 
 def _data_findings(left: RunManifest, right: RunManifest) -> list[tuple[Trust, str]]:
@@ -234,5 +206,5 @@ def assess(
     if not findings:
         return Verdict(Trust.IDENTICAL)
 
-    worst = max(findings, key=lambda finding: _SEVERITY[finding[0]])[0]
+    worst = max(findings, key=lambda finding: SEVERITY[finding[0]])[0]
     return Verdict(worst, tuple(reason for _, reason in findings))

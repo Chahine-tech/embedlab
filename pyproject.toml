@@ -97,9 +97,11 @@ type = "layers"
 layers = [
     "embedlab.cli",
     "embedlab.pipeline",
-    "embedlab.stages",
-    "embedlab.adapters",
+    # artifacts sits above the pure stages, not below: it serialises what they
+    # produce, so it has to know their result types. The first ordering put it
+    # underneath and the contract caught it the moment a writer appeared.
     "embedlab.artifacts",
+    "embedlab.stages : embedlab.adapters",
     "embedlab.cache",
     "embedlab.domain",
 ]

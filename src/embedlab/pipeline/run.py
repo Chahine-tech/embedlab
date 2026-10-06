@@ -29,6 +29,7 @@ from embedlab.artifacts.run_io import (
     write_run,
     write_stage_provenance,
 )
+from embedlab.artifacts.workspace import write_run_bundle
 from embedlab.cache.fingerprint import fingerprint
 from embedlab.domain.ids import Fingerprint, RunId
 from embedlab.stages.diagnose import diagnose
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
     from embedlab.adapters.base import Retriever
     from embedlab.artifacts.dataset import Dataset
+    from embedlab.artifacts.workspace import Workspace
     from embedlab.cache.store import CacheStore
     from embedlab.domain.retrieval import Run
     from embedlab.stages.diagnose import Diagnosis
@@ -159,8 +161,15 @@ def execute(
     k: int = 10,
     measures: Sequence[str] = DEFAULT_MEASURES,
     store: CacheStore | None = None,
+    workspace: Workspace | None = None,
 ) -> RunOutcome:
-    """Index, search, score and diagnose one retrieval configuration."""
+    """Index, search, score and diagnose one retrieval configuration.
+
+    With a workspace, the result is also published as files: the run, its
+    per-query metrics, its evidence and its hypotheses. That bundle is the
+    contract with every reader downstream, so nothing has to import this engine
+    to use what it produced.
+    """
     run, retrieval, from_cache = _retrieve(dataset, retriever, k=k, store=store)
 
     evaluation = evaluate(run, dataset.qrels, measures=measures)
@@ -204,7 +213,7 @@ def execute(
         ),
     )
 
-    return RunOutcome(
+    outcome = RunOutcome(
         name=retriever.name,
         run=run,
         evaluation=evaluation,
@@ -212,3 +221,14 @@ def execute(
         manifest=manifest,
         from_cache=from_cache,
     )
+
+    if workspace is not None:
+        write_run_bundle(
+            workspace.run_dir(str(manifest.run_id)),
+            manifest_json=manifest.model_dump_json(),
+            run=run,
+            evaluation=evaluation,
+            diagnosis=diagnosis,
+        )
+
+    return outcome
