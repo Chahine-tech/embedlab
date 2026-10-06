@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # Pinned to a full version: this action publishes no floating v8, v9 or
+      # v10 major tag, and `@v10` resolves to nothing at all.
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
 
